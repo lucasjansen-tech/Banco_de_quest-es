@@ -1,0 +1,30 @@
+# --- Segurança e Senhas (CRÍTICO) ---
+.env
+.streamlit/secrets.toml
+credentials.json
+*.key
+
+# --- Ambientes Virtuais Python ---
+# Impede que as bibliotecas pesadas do seu PC subam para o GitHub
+venv/
+.venv/
+env/
+ENV/
+__pycache__/
+*.pyc
+*.pyo
+
+# --- Arquivos Gerados e Uploads ---
+# Evita que as provas geradas em Word ou imagens de testes lotem o repositório
+*.docx
+*.pdf
+temp/
+uploads/
+downloads/
+cache/
+
+# --- Configurações de IDE e Sistema Operacional ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
