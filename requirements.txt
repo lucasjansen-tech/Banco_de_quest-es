@@ -1,0 +1,19 @@
+# --- Interface e Edição (UI/UX) ---
+streamlit
+streamlit-quill
+
+# --- Análise de Dados e Cálculos ---
+pandas
+numpy
+sympy
+
+# --- Manipulação de Imagens e Exportação de Provas ---
+Pillow
+python-docx
+
+# --- Inteligência Artificial ---
+google-generativeai
+
+# --- Backend e Segurança ---
+python-dotenv
+supabase
