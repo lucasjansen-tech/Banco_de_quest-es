@@ -1,72 +1,105 @@
 import streamlit as st
 
-# 1. Configuração base da página (Obrigatório ser a primeira linha do Streamlit)
+# 1. Configuração base da página
 st.set_page_config(
-    page_title="Sistema de Avaliação - COTED",
+    page_title="Avalia System - COTED",
     page_icon="📚",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed" # Começa com a barra fechada
 )
 
-# 2. Inicialização de Variáveis de Sessão (O nosso banco de dados temporário)
-# Isso mantém os dados vivos enquanto navegamos pelas telas
+# 2. Inicialização de Variáveis de Sessão
 if 'usuario_logado' not in st.session_state:
     st.session_state.usuario_logado = False
 if 'perfil' not in st.session_state:
     st.session_state.perfil = None
 
-# 3. Tela de Autenticação (Login Simples)
+# 3. TELA DE LOGIN (UI Moderna)
 def tela_login():
-    col1, col2, col3 = st.columns([1, 2, 1])
+    # CSS para esconder completamente a barra lateral na tela de login
+    st.markdown("""
+        <style>
+            [data-testid="collapsedControl"] {display: none;}
+            [data-testid="stSidebar"] {display: none;}
+        </style>
+    """, unsafe_allow_html=True)
+    
+    # Usamos colunas para centralizar o formulário
+    col1, col2, col3 = st.columns([1, 1.2, 1])
     
     with col2:
-        st.title("📚 Avalia System")
-        st.subheader("Acesso ao Banco de Questões")
+        st.write("<br><br><br>", unsafe_allow_html=True) # Dá um espaço do topo
         
-        with st.form("login_form"):
-            email = st.text_input("Usuário")
-            senha = st.text_input("Senha", type="password")
-            submit = st.form_submit_button("Entrar no Sistema", use_container_width=True)
+        # Cria um visual de "Cartão" com borda sutil
+        with st.container(border=True):
+            st.markdown("<h2 style='text-align: center;'>📚 Avalia System</h2>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align: center; color: gray;'>Central de Gestão de Avaliações</p>", unsafe_allow_html=True)
+            st.divider()
             
-            if submit:
-                # Simulação de perfis para testarmos a interface depois
-                if email == "admin" and senha == "admin":
-                    st.session_state.usuario_logado = True
-                    st.session_state.perfil = "Administrador"
-                    st.rerun()
-                elif email == "prof" and senha == "prof":
-                    st.session_state.usuario_logado = True
-                    st.session_state.perfil = "Elaborador"
-                    st.rerun()
-                else:
-                    st.error("Credenciais inválidas. Tente admin/admin ou prof/prof.")
+            with st.form("login_form"):
+                email = st.text_input("Usuário", placeholder="Digite seu usuário (ex: admin)")
+                senha = st.text_input("Senha", type="password", placeholder="Digite sua senha")
+                
+                # Botão com a cor primária (type="primary")
+                submit = st.form_submit_button("Entrar no Sistema", use_container_width=True, type="primary")
+                
+                if submit:
+                    if email == "admin" and senha == "admin":
+                        st.session_state.usuario_logado = True
+                        st.session_state.perfil = "Administrador"
+                        st.rerun()
+                    elif email == "prof" and senha == "prof":
+                        st.session_state.usuario_logado = True
+                        st.session_state.perfil = "Elaborador"
+                        st.rerun()
+                    else:
+                        st.error("Credenciais inválidas.")
 
-# 4. Dashboard Principal (O que o usuário vê após logar)
-def tela_dashboard():
-    # Controle da barra lateral
-    st.sidebar.success(f"Logado como: {st.session_state.perfil}")
-    if st.sidebar.button("Sair", use_container_width=True):
-        st.session_state.usuario_logado = False
-        st.rerun()
+# 4. SISTEMA LOGADO (Dashboard e Menu Customizado)
+def sistema_logado():
+    # --- CONSTRUÇÃO DO NOSSO PRÓPRIO MENU LATERAL ---
+    with st.sidebar:
+        st.title("📚 Avalia System")
+        st.markdown(f"**👤 Olá, {st.session_state.perfil}**")
+        st.divider()
+        
+        st.markdown("### 📌 Navegação")
+        # Links de navegação modernos (Substituem o padrão do Streamlit)
+        st.page_link("app.py", label="Dashboard Principal", icon="📊")
+        
+        if st.session_state.perfil == "Administrador":
+            st.page_link("pages/1_Matrizes.py", label="Gestão de Matrizes", icon="⚙️")
+        
+        # Quando criarmos a tela de elaboração, descomentamos a linha abaixo:
+        # st.page_link("pages/2_Elaborar_Questoes.py", label="Elaborar Questões", icon="📝")
+        
+        st.divider()
+        if st.button("🚪 Sair", use_container_width=True):
+            st.session_state.usuario_logado = False
+            st.session_state.perfil = None
+            st.rerun()
 
-    st.title("📊 Visão Geral do Sistema")
-    st.write("Bem-vindo ao sistema central de estruturação de itens de avaliação.")
+    # --- CONTEÚDO DO DASHBOARD ---
+    st.header("📊 Visão Geral do Sistema")
+    st.write("Acompanhe o volume de itens disponíveis para o ciclo avaliativo.")
     
-    # Métricas de exemplo focadas nos componentes estruturais
     col1, col2, col3 = st.columns(3)
-    col1.metric("Questões de Língua Portuguesa", "215", "+5 cadastradas hoje")
-    col2.metric("Questões de Matemática", "142", "+12 cadastradas hoje")
-    col3.metric("Matrizes de Referência", "3", "Em atualização")
+    # Criando cards de métricas usando containers para ficar mais elegante
+    with col1:
+        with st.container(border=True):
+            st.metric("Língua Portuguesa", "215 itens", "+5 na semana")
+    with col2:
+        with st.container(border=True):
+            st.metric("Matemática", "142 itens", "+12 na semana")
+    with col3:
+        with st.container(border=True):
+            st.metric("Matrizes de Referência", "3 cadastradas", "Em revisão")
     
     st.divider()
-    
-    st.info("👈 Utilize o menu lateral para navegar entre o cadastro de habilidades, elaboração de questões e montagem do ciclo avaliativo.")
-    
-    # Exemplo de indicador visual para o ciclo de correção/elaboração
-    st.subheader("Progresso do Ciclo Atual")
-    st.progress(60, text="Meta de elaboração para o 1º Bimestre (60%)")
+    st.info("👈 Utilize o menu lateral para navegar pelas funcionalidades do sistema.")
 
-# 5. Lógica de Roteamento Principal
+# 5. ROTEAMENTO
 if not st.session_state.usuario_logado:
     tela_login()
 else:
-    tela_dashboard()
+    sistema_logado()
