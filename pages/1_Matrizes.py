@@ -8,7 +8,17 @@ if not st.session_state.get('usuario_logado') or st.session_state.get('perfil') 
 
 with st.sidebar:
     st.title("📚 Avalia System")
+    # Mostra quem está logado mesmo nesta tela
+    st.markdown(f"**👤 {st.session_state.get('perfil', 'Usuário')}**")
+    st.divider()
+    
     st.page_link("app.py", label="Voltar ao Dashboard", icon="⬅️")
+    
+    st.divider()
+    # Botão de Sair que limpa a memória e te chuta direto para a tela de Login
+    if st.button("🚪 Sair", use_container_width=True):
+        st.session_state.clear()
+        st.switch_page("app.py")
 
 st.title("⚙️ Configuração de Matrizes")
 st.write("Alimente o banco de dados principal importando a planilha oficial da rede.")
