@@ -17,3 +17,5 @@ google-generativeai
 # --- Backend e Segurança ---
 python-dotenv
 supabase
+
+openpyxl
