@@ -17,7 +17,8 @@ with st.sidebar:
     st.divider()
     # Botão de Sair que limpa a memória e te chuta direto para a tela de Login
     if st.button("🚪 Sair", use_container_width=True):
-        st.session_state.clear()
+        st.session_state.usuario_logado = False
+        st.session_state.perfil = None
         st.switch_page("app.py")
 
 st.title("⚙️ Configuração de Matrizes")
