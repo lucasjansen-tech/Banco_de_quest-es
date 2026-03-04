@@ -50,12 +50,8 @@ with st.sidebar:
     if st.session_state.perfil == "Administrador":
         st.page_link("pages/1_Matrizes.py", label="Gestão de Matrizes", icon="⚙️")
     
-    # Próximos passos (deixaremos comentados por enquanto)
-    # st.page_link("pages/2_Criar_Questao.py", label="Criar Questões", icon="📝")
-    # st.page_link("pages/3_Buscar_Questoes.py", label="Banco de Questões", icon="🔍")
-    
     st.divider()
-        if st.button("🚪 Sair", use_container_width=True):
+    if st.button("🚪 Sair", use_container_width=True):
         st.session_state.usuario_logado = False
         st.session_state.perfil = None
         st.rerun()
