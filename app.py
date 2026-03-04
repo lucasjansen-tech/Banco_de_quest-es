@@ -1,105 +1,111 @@
 import streamlit as st
+import pandas as pd
 
-# 1. Configuração base da página
-st.set_page_config(
-    page_title="Avalia System - COTED",
-    page_icon="📚",
-    layout="wide",
-    initial_sidebar_state="collapsed" # Começa com a barra fechada
-)
+st.set_page_config(page_title="Gestão de Matrizes", page_icon="⚙️")
 
-# 2. Inicialização de Variáveis de Sessão
-if 'usuario_logado' not in st.session_state:
-    st.session_state.usuario_logado = False
-if 'perfil' not in st.session_state:
-    st.session_state.perfil = None
+# --- VERIFICAÇÃO DE SEGURANÇA ---
+if not st.session_state.get('usuario_logado'):
+    st.warning("⚠️ Por favor, faça o login na página inicial para acessar o sistema.")
+    st.stop()
 
-# 3. TELA DE LOGIN (UI Moderna)
-def tela_login():
-    # CSS para esconder completamente a barra lateral na tela de login
-    st.markdown("""
-        <style>
-            [data-testid="collapsedControl"] {display: none;}
-            [data-testid="stSidebar"] {display: none;}
-        </style>
-    """, unsafe_allow_html=True)
+if st.session_state.get('perfil') != "Administrador":
+    st.error("⛔ Acesso negado. Apenas Administradores podem configurar as matrizes.")
+    st.stop()
+
+# --- INICIALIZAÇÃO DE DADOS ---
+if 'anos_ensino' not in st.session_state:
+    st.session_state.anos_ensino = ["1º Ano", "2º Ano", "3º Ano"]
+if 'habilidades' not in st.session_state:
+    st.session_state.habilidades = []
+
+st.title("⚙️ Configuração de Matrizes")
+
+# Criamos as abas. A primeira lista na array é a que abre por padrão.
+aba1, aba2 = st.tabs(["✍️ Cadastro Manual", "📤 Importar Planilha (Google Sheets)"])
+
+# --- ABA 1: CADASTRO MANUAL ---
+with aba1:
+    st.write("Cadastre habilidades pontuais ou crie novos anos de ensino.")
     
-    # Usamos colunas para centralizar o formulário
-    col1, col2, col3 = st.columns([1, 1.2, 1])
-    
-    with col2:
-        st.write("<br><br><br>", unsafe_allow_html=True) # Dá um espaço do topo
-        
-        # Cria um visual de "Cartão" com borda sutil
-        with st.container(border=True):
-            st.markdown("<h2 style='text-align: center;'>📚 Avalia System</h2>", unsafe_allow_html=True)
-            st.markdown("<p style='text-align: center; color: gray;'>Central de Gestão de Avaliações</p>", unsafe_allow_html=True)
-            st.divider()
-            
-            with st.form("login_form"):
-                email = st.text_input("Usuário", placeholder="Digite seu usuário (ex: admin)")
-                senha = st.text_input("Senha", type="password", placeholder="Digite sua senha")
-                
-                # Botão com a cor primária (type="primary")
-                submit = st.form_submit_button("Entrar no Sistema", use_container_width=True, type="primary")
-                
-                if submit:
-                    if email == "admin" and senha == "admin":
-                        st.session_state.usuario_logado = True
-                        st.session_state.perfil = "Administrador"
-                        st.rerun()
-                    elif email == "prof" and senha == "prof":
-                        st.session_state.usuario_logado = True
-                        st.session_state.perfil = "Elaborador"
-                        st.rerun()
-                    else:
-                        st.error("Credenciais inválidas.")
+    col_ano1, col_ano2 = st.columns([2, 1])
+    with col_ano1:
+        novo_ano = st.text_input("Adicionar novo Ano/Série (Ex: 4º Ano)")
+    with col_ano2:
+        st.write("<br>", unsafe_allow_html=True)
+        if st.button("➕ Adicionar Ano", use_container_width=True):
+            if novo_ano and novo_ano not in st.session_state.anos_ensino:
+                st.session_state.anos_ensino.append(novo_ano)
+                st.success(f"'{novo_ano}' adicionado!")
 
-# 4. SISTEMA LOGADO (Dashboard e Menu Customizado)
-def sistema_logado():
-    # --- CONSTRUÇÃO DO NOSSO PRÓPRIO MENU LATERAL ---
-    with st.sidebar:
-        st.title("📚 Avalia System")
-        st.markdown(f"**👤 Olá, {st.session_state.perfil}**")
-        st.divider()
-        
-        st.markdown("### 📌 Navegação")
-        # Links de navegação modernos (Substituem o padrão do Streamlit)
-        st.page_link("app.py", label="Dashboard Principal", icon="📊")
-        
-        if st.session_state.perfil == "Administrador":
-            st.page_link("pages/1_Matrizes.py", label="Gestão de Matrizes", icon="⚙️")
-        
-        # Quando criarmos a tela de elaboração, descomentamos a linha abaixo:
-        # st.page_link("pages/2_Elaborar_Questoes.py", label="Elaborar Questões", icon="📝")
-        
-        st.divider()
-        if st.button("🚪 Sair", use_container_width=True):
-            st.session_state.usuario_logado = False
-            st.session_state.perfil = None
-            st.rerun()
-
-    # --- CONTEÚDO DO DASHBOARD ---
-    st.header("📊 Visão Geral do Sistema")
-    st.write("Acompanhe o volume de itens disponíveis para o ciclo avaliativo.")
-    
-    col1, col2, col3 = st.columns(3)
-    # Criando cards de métricas usando containers para ficar mais elegante
-    with col1:
-        with st.container(border=True):
-            st.metric("Língua Portuguesa", "215 itens", "+5 na semana")
-    with col2:
-        with st.container(border=True):
-            st.metric("Matemática", "142 itens", "+12 na semana")
-    with col3:
-        with st.container(border=True):
-            st.metric("Matrizes de Referência", "3 cadastradas", "Em revisão")
-    
     st.divider()
-    st.info("👈 Utilize o menu lateral para navegar pelas funcionalidades do sistema.")
 
-# 5. ROTEAMENTO
-if not st.session_state.usuario_logado:
-    tela_login()
-else:
-    sistema_logado()
+    with st.form("form_habilidades", clear_on_submit=True):
+        st.subheader("Cadastrar Habilidade Única")
+        col_hab1, col_hab2 = st.columns(2)
+        with col_hab1:
+            codigo = st.text_input("Código (Ex: 2AP1.1)*")
+            componente = st.selectbox("Componente Curricular*", ["LÍNGUA PORTUGUESA", "MATEMÁTICA"])
+        with col_hab2:
+            ano_vinculado = st.selectbox("Ano de Ensino*", st.session_state.anos_ensino)
+            
+        descricao = st.text_area("Descrição da habilidade*")
+        
+        if st.form_submit_button("💾 Salvar Habilidade"):
+            if codigo and descricao:
+                st.session_state.habilidades.append({"Código": codigo, "Componente": componente, "Ano": ano_vinculado, "Descrição": descricao})
+                st.success("Habilidade cadastrada!")
+
+
+# --- ABA 2: IMPORTADOR MÁGICO (Configurado para sua planilha) ---
+with aba2:
+    st.subheader("Importação em Lote")
+    st.write("Faça o upload da planilha com as colunas: **ANO, HABILIDADE, DESCRIÇÃO e COMPONENTE**.")
+    
+    arquivo_upload = st.file_uploader("Arraste sua planilha (.csv ou .xlsx)", type=['csv', 'xlsx'])
+    
+    if arquivo_upload is not None:
+        try:
+            # Lê o arquivo
+            if arquivo_upload.name.endswith('.csv'):
+                df_importado = pd.read_csv(arquivo_upload)
+            else:
+                df_importado = pd.read_excel(arquivo_upload)
+            
+            # Força o nome das colunas a ficarem em maiúsculo e sem espaços extras para evitar erros
+            df_importado.columns = df_importado.columns.str.upper().str.strip()
+            
+            st.write("👀 Prévia dos dados lidos da sua planilha:")
+            st.dataframe(df_importado.head(3), use_container_width=True)
+            
+            if st.button("✅ Confirmar e Importar para o Sistema", type="primary"):
+                contador = 0
+                for index, linha in df_importado.iterrows():
+                    
+                    # Faz o DE-PARA lendo exatamente os nomes das suas colunas
+                    nova_hab = {
+                        "Código": linha.get('HABILIDADE', f"Sem Código {index}"),
+                        "Componente": linha.get('COMPONENTE', 'Não definido'),
+                        "Ano": linha.get('ANO', 'Não definido'),
+                        "Descrição": linha.get('DESCRIÇÃO', 'Sem descrição')
+                    }
+                    
+                    # Adiciona a habilidade
+                    st.session_state.habilidades.append(nova_hab)
+                    contador += 1
+                    
+                    # BÔNUS: Se a planilha tiver um 'Ano' que o sistema ainda não tem, ele adiciona sozinho!
+                    ano_planilha = str(linha.get('ANO', '')).strip()
+                    if ano_planilha and ano_planilha not in st.session_state.anos_ensino:
+                        st.session_state.anos_ensino.append(ano_planilha)
+                        
+                st.success(f"🎉 Sucesso! {contador} habilidades foram importadas para o banco temporário.")
+                
+        except Exception as e:
+            st.error(f"Erro ao processar a planilha. Tem certeza que ela possui as colunas ANO, HABILIDADE, DESCRIÇÃO e COMPONENTE? Erro técnico: {e}")
+
+# --- TABELA DE HABILIDADES GERAIS ---
+if st.session_state.habilidades:
+    st.divider()
+    st.write("**📚 Banco de Habilidades Atual:**")
+    df_hab = pd.DataFrame(st.session_state.habilidades)
+    st.dataframe(df_hab, use_container_width=True, hide_index=True)
