@@ -55,7 +55,7 @@ with st.sidebar:
     # st.page_link("pages/3_Buscar_Questoes.py", label="Banco de Questões", icon="🔍")
     
     st.divider()
-   if st.button("🚪 Sair", use_container_width=True):
+        if st.button("🚪 Sair", use_container_width=True):
         st.session_state.usuario_logado = False
         st.session_state.perfil = None
         st.rerun()
