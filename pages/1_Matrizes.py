@@ -1,30 +1,31 @@
 import streamlit as st
 import pandas as pd
+from supabase import create_client
 
 st.set_page_config(page_title="Gestão de Matrizes", page_icon="⚙️", layout="wide")
 
 if not st.session_state.get('usuario_logado') or st.session_state.get('perfil') != "Administrador":
     st.switch_page("app.py")
 
+# CONEXÃO SUPABASE
+@st.cache_resource
+def init_connection():
+    return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+supabase = init_connection()
+
 with st.sidebar:
     st.title("📚 Avalia System")
-    # Mostra quem está logado mesmo nesta tela
     st.markdown(f"**👤 {st.session_state.get('perfil', 'Usuário')}**")
     st.divider()
-    
     st.page_link("app.py", label="Voltar ao Dashboard", icon="⬅️")
-    
     st.divider()
-    # Botão de Sair que limpa a memória e te chuta direto para a tela de Login
     if st.button("🚪 Sair", use_container_width=True):
         st.session_state.usuario_logado = False
         st.session_state.perfil = None
         st.switch_page("app.py")
 
 st.title("⚙️ Configuração de Matrizes")
-st.write("Alimente o banco de dados principal importando a planilha oficial da rede.")
-
-st.info("💡 Sua planilha deve conter exatamente as colunas: **ANO**, **HABILIDADE**, **DESCRIÇÃO** e **COMPONENTE**.")
+st.write("Alimente o **Banco de Dados Oficial** importando a planilha da rede.")
 
 arquivo_upload = st.file_uploader("Selecione sua planilha (.xlsx ou .csv)", type=['csv', 'xlsx'])
 
@@ -35,44 +36,52 @@ if arquivo_upload is not None:
         else:
             df = pd.read_excel(arquivo_upload)
             
-        # Padroniza as colunas (maiúsculo e sem espaços)
         df.columns = df.columns.str.upper().str.strip()
-        
-        # Verifica se as colunas obrigatórias existem
         colunas_esperadas = ['ANO', 'HABILIDADE', 'DESCRIÇÃO', 'COMPONENTE']
         colunas_faltantes = [col for col in colunas_esperadas if col not in df.columns]
         
         if colunas_faltantes:
-            st.error(f"❌ Erro: Faltam estas colunas na sua planilha: {', '.join(colunas_faltantes)}")
+            st.error(f"❌ Erro: Faltam as colunas: {', '.join(colunas_faltantes)}")
         else:
             st.success("✅ Planilha validada! Estrutura correta.")
-            st.dataframe(df.head(5), use_container_width=True) # Mostra uma prévia
+            st.dataframe(df.head(3), use_container_width=True)
             
-            if st.button("📥 Importar Dados para o Sistema", type="primary"):
-                novas_habilidades = []
-                novos_anos = set(st.session_state.anos_ensino)
-                
-                for _, linha in df.iterrows():
-                    novas_habilidades.append({
-                        "Ano": str(linha['ANO']).strip(),
-                        "Código": str(linha['HABILIDADE']).strip(),
-                        "Descrição": str(linha['DESCRIÇÃO']).strip(),
-                        "Componente": str(linha['COMPONENTE']).strip().upper()
-                    })
-                    novos_anos.add(str(linha['ANO']).strip())
-                
-                # Salva no banco temporário
-                st.session_state.habilidades = novas_habilidades
-                st.session_state.anos_ensino = sorted(list(novos_anos))
-                
-                st.success(f"🎉 Matriz carregada com sucesso! {len(novas_habilidades)} habilidades registradas.")
-                st.balloons()
-                
+            if st.button("📥 Gravar no Banco de Dados Supabase", type="primary"):
+                with st.spinner("Salvando na nuvem..."):
+                    # Prepara a lista de dicionários para o Supabase baseada no nosso SQL
+                    dados_para_inserir = []
+                    for _, linha in df.iterrows():
+                        dados_para_inserir.append({
+                            "ano": str(linha['ANO']).strip(),
+                            "codigo_habilidade": str(linha['HABILIDADE']).strip(),
+                            "descricao": str(linha['DESCRIÇÃO']).strip(),
+                            "componente": str(linha['COMPONENTE']).strip().upper()
+                        })
+                    
+                    # Dispara o comando de INSERT
+                    resposta = supabase.table("matrizes").insert(dados_para_inserir).execute()
+                    
+                    st.success(f"🎉 Sucesso! {len(resposta.data)} habilidades foram salvas permanentemente.")
+                    st.balloons()
+                    
     except Exception as e:
-        st.error(f"Erro inesperado ao ler o arquivo: {e}")
+        st.error(f"Erro inesperado: {e}")
 
-# Mostra o banco atual se já existir
-if len(st.session_state.habilidades) > 0:
-    st.divider()
-    st.subheader(f"🗄️ Banco de Matrizes Atual ({len(st.session_state.habilidades)} itens)")
-    st.dataframe(pd.DataFrame(st.session_state.habilidades), use_container_width=True, hide_index=True)
+st.divider()
+
+# --- BUSCANDO DO BANCO DE DADOS REAL PARA EXIBIR ---
+st.subheader("🗄️ Matrizes Salvas no Supabase")
+
+try:
+    # Faz um SELECT na tabela matrizes
+    resposta_banco = supabase.table("matrizes").select("*").execute()
+    
+    if len(resposta_banco.data) > 0:
+        df_banco = pd.DataFrame(resposta_banco.data)
+        # Organiza a ordem das colunas para visualização
+        df_banco = df_banco[['ano', 'componente', 'codigo_habilidade', 'descricao', 'created_at']]
+        st.dataframe(df_banco, use_container_width=True, hide_index=True)
+    else:
+        st.info("O banco de dados oficial está vazio. Faça a primeira importação acima.")
+except Exception as e:
+    st.error(f"Erro ao buscar matrizes do banco: {e}")
