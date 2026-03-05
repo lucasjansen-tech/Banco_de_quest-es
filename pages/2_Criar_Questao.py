@@ -4,7 +4,7 @@ from supabase import create_client
 
 st.set_page_config(page_title="Elaborador de Itens", page_icon="📝", layout="wide")
 
-# --- 1. SEGURANÇA E CONEXÃO ---
+# --- SEGURANÇA E CONEXÃO ---
 if not st.session_state.get('usuario_logado'):
     st.switch_page("app.py")
 
@@ -13,7 +13,6 @@ def init_connection():
     return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 supabase = init_connection()
 
-# --- 2. MENU LATERAL ---
 with st.sidebar:
     st.title("📚 Avalia System")
     st.markdown(f"**👤 {st.session_state.get('perfil', 'Usuário')}**")
@@ -30,7 +29,7 @@ with st.sidebar:
 
 st.title("📝 Estúdio de Criação Avançado")
 
-# --- 3. BUSCANDO MATRIZES ---
+# --- BUSCANDO MATRIZES ---
 @st.cache_data(ttl=600)
 def carregar_matrizes():
     resposta = supabase.table("matrizes").select("id, ano, componente, codigo_habilidade, descricao").execute()
@@ -41,7 +40,7 @@ if df_matriz.empty:
     st.error("⛔ Matrizes não carregadas. Retorne e faça a importação.")
     st.stop()
 
-# --- 4. FILTROS DINÂMICOS ---
+# --- FILTROS DINÂMICOS ---
 st.subheader("1. Parâmetros Curriculares")
 col_p1, col_p2, col_p3 = st.columns(3)
 with col_p1:
@@ -62,54 +61,56 @@ with col_p3:
 
 st.divider()
 
-# --- 5. CONSTRUTOR VISUAL DE FÓRMULAS ---
-with st.expander("🧮 Construtor Visual de Fórmulas (Clique aqui se precisar de Matemática)"):
-    st.write("Não sabe usar códigos? Preencha os campos abaixo, copie o bloquinho gerado e cole no seu texto!")
-    aba_frac, aba_raiz, aba_pot, aba_simb = st.tabs(["➗ Frações", "√ Raízes", "x² Potências", "Ω Símbolos Úteis"])
+# --- CATÁLOGO DE SÍMBOLOS MATEMÁTICOS (EXPANDIDO) ---
+with st.expander("🧮 Catálogo de Fórmulas e Símbolos (Clique para abrir)"):
+    st.write("Copie o código do quadro negro e cole no seu texto. Ele se transformará no símbolo automaticamente.")
+    aba_construtor, aba_geo, aba_grego, aba_conj = st.tabs(["🔨 Construtor Básico", "📐 Geometria", "α Letras Gregas", "⋃ Conjuntos"])
     
-    with aba_frac:
+    with aba_construtor:
+        st.write("Crie frações, raízes e potências dinamicamente:")
         col_f1, col_f2, col_f3 = st.columns([1, 1, 2])
-        with col_f1: num = st.text_input("Numerador (Cima)", value="1")
-        with col_f2: den = st.text_input("Denominador (Baixo)", value="2")
-        with col_f3:
-            st.markdown("**Resultado Visual:**")
-            st.markdown(f"$\\frac{{{num}}}{{{den}}}$")
-            st.code(f"$\\frac{{{num}}}{{{den}}}$", language="latex")
-            
-    with aba_raiz:
+        with col_f1: num = st.text_input("Numerador", value="1")
+        with col_f2: den = st.text_input("Denominador", value="2")
+        with col_f3: st.code(f"$\\frac{{{num}}}{{{den}}}$", language="latex")
+        
         col_r1, col_r2, col_r3 = st.columns([1, 1, 2])
-        with col_r1: indice = st.text_input("Índice (Ex: 3 para cúbica, vazio para quadrada)", value="")
+        with col_r1: indice = st.text_input("Índice da Raiz", value="3")
         with col_r2: valor = st.text_input("Valor interno", value="x")
-        with col_r3:
-            st.markdown("**Resultado Visual:**")
-            raiz_code = f"$\\sqrt[{indice}]{{{valor}}}$" if indice else f"$\\sqrt{{{valor}}}$"
-            st.markdown(raiz_code)
-            st.code(raiz_code, language="latex")
-            
-    with aba_pot:
-        col_p1, col_p2, col_p3 = st.columns([1, 1, 2])
-        with col_p1: base = st.text_input("Base", value="x")
-        with col_p2: expoente = st.text_input("Expoente", value="2")
-        with col_p3:
-            st.markdown("**Resultado Visual:**")
-            st.markdown(f"${base}^{{{expoente}}}$")
-            st.code(f"${base}^{{{expoente}}}$", language="latex")
+        with col_r3: st.code(f"$\\sqrt[{indice}]{{{valor}}}$" if indice else f"$\\sqrt{{{valor}}}$", language="latex")
 
-    with aba_simb:
-        st.write("Apenas clique no ícone de copiar no canto do quadro negro e cole no texto:")
-        col_s1, col_s2, col_s3, col_s4 = st.columns(4)
-        with col_s1: st.code("$\\pi$", language="latex")
-        with col_s2: st.code("$\\in$", language="latex")
-        with col_s3: st.code("$\\neq$", language="latex")
-        with col_s4: st.code("$\\ge$", language="latex")
+    with aba_geo:
+        c1, c2, c3, c4 = st.columns(4)
+        with c1: st.code("Grau: $90^\\circ$", language="latex")
+        with c2: st.code("Ângulo: $\\angle A$", language="latex")
+        with c3: st.code("Triângulo: $\\triangle ABC$", language="latex")
+        with c4: st.code("Perpendicular: $\\perp$", language="latex")
+        c5, c6, c7, c8 = st.columns(4)
+        with c5: st.code("Paralelo: $\\parallel$", language="latex")
+        with c6: st.code("Congruente: $\\cong$", language="latex")
+        with c7: st.code("Vetor: $\\vec{v}$", language="latex")
+        with c8: st.code("Pi: $\\pi$", language="latex")
+
+    with aba_grego:
+        c1, c2, c3, c4 = st.columns(4)
+        with c1: st.code("Alfa: $\\alpha$", language="latex")
+        with c2: st.code("Beta: $\\beta$", language="latex")
+        with c3: st.code("Teta: $\\theta$", language="latex")
+        with c4: st.code("Gama: $\\gamma$", language="latex")
+
+    with aba_conj:
+        c1, c2, c3, c4 = st.columns(4)
+        with c1: st.code("Pertence: $\\in$", language="latex")
+        with c2: st.code("Não pertence: $\\notin$", language="latex")
+        with c3: st.code("União: $\\cup$", language="latex")
+        with c4: st.code("Interseção: $\\cap$", language="latex")
 
 st.divider()
 
-# --- 6. EDITOR ROBUSTO COM PREVIEW ---
+# --- EDITOR ROBUSTO COM PREVIEW E PREPARAÇÃO PARA IA ---
 st.subheader("2. Estrutura do Item")
 col_meta1, col_meta2 = st.columns(2)
 with col_meta1: complexidade = st.select_slider("Complexidade", options=["Fácil", "Intermediária", "Complexa"])
-with col_meta2: tags = st.text_input("Tags", placeholder="Ex: Fração, Geometria")
+with col_meta2: tags = st.text_input("Tags", placeholder="Ex: Fração, Geometria, Cotidiano")
 
 col_editor, col_preview = st.columns([1.2, 1])
 
@@ -117,7 +118,11 @@ with col_editor:
     with st.container(border=True):
         st.markdown("### ✍️ Edição")
         texto_base = st.text_area("Texto Base (Opcional)", height=100)
+        
         img_apoio = st.file_uploader("Imagem do Enunciado", type=['png', 'jpg', 'jpeg'], key="img_base")
+        if img_apoio:
+            st.button("✨ Melhorar imagem com IA (Próxima Etapa)", disabled=True, use_container_width=True)
+            
         enunciado = st.text_area("Enunciado*", height=100)
         
         st.markdown("#### Alternativas")
@@ -158,12 +163,9 @@ with col_preview:
 
 st.divider()
 
-# --- 7. BOTÃO DE SALVAMENTO (Corrigido) ---
-# Botão sem a tag type="primary" para não puxar o vermelho do tema padrão
 if st.button("💾 Salvar Item no Banco de Dados", use_container_width=True):
     if enunciado and alt_A and alt_B and alt_C and alt_D:
         with st.spinner("Salvando na nuvem..."):
-            
             dict_alternativas = {
                 "A": {"texto": alt_A, "tem_imagem": True if img_A else False},
                 "B": {"texto": alt_B, "tem_imagem": True if img_B else False},
@@ -171,7 +173,6 @@ if st.button("💾 Salvar Item no Banco de Dados", use_container_width=True):
                 "D": {"texto": alt_D, "tem_imagem": True if img_D else False}
             }
             
-            # Pacote de dados alinhado estritamente com o SQL criado no Supabase
             nova_questao = {
                 "id_habilidade": id_habilidade_banco,
                 "autor": st.session_state.perfil,
@@ -179,7 +180,7 @@ if st.button("💾 Salvar Item no Banco de Dados", use_container_width=True):
                 "complexidade": complexidade,
                 "texto_base": texto_base,
                 "enunciado": enunciado,
-                "imagem_url": None, # Corrigido para bater com a coluna do banco
+                "imagem_url": None, 
                 "alternativas": dict_alternativas,
                 "gabarito": gabarito,
                 "tags": tags
