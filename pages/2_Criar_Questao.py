@@ -61,59 +61,86 @@ with col_p3:
 
 st.divider()
 
+# --- CONSTRUTOR VISUAL DE FÓRMULAS (O "Pulo do Gato" para os professores) ---
+with st.expander("🧮 Construtor Visual de Fórmulas (Clique aqui se precisar de Matemática)"):
+    st.write("Não sabe usar códigos? Preencha os campos abaixo, copie o bloquinho gerado e cole no seu texto!")
+    aba_frac, aba_raiz, aba_pot, aba_simb = st.tabs(["➗ Frações", "√ Raízes", "x² Potências", "Ω Símbolos Úteis"])
+    
+    with aba_frac:
+        col_f1, col_f2, col_f3 = st.columns([1, 1, 2])
+        with col_f1: num = st.text_input("Numerador (Cima)", value="1")
+        with col_f2: den = st.text_input("Denominador (Baixo)", value="2")
+        with col_f3:
+            st.markdown("**Resultado Visual:**")
+            st.markdown(f"$\\frac{{{num}}}{{{den}}}$")
+            st.code(f"$\\frac{{{num}}}{{{den}}}$", language="latex")
+            
+    with aba_raiz:
+        col_r1, col_r2, col_r3 = st.columns([1, 1, 2])
+        with col_r1: indice = st.text_input("Índice (Ex: 3 para cúbica, vazio para quadrada)", value="")
+        with col_r2: valor = st.text_input("Valor interno", value="x")
+        with col_r3:
+            st.markdown("**Resultado Visual:**")
+            raiz_code = f"$\\sqrt[{indice}]{{{valor}}}$" if indice else f"$\\sqrt{{{valor}}}$"
+            st.markdown(raiz_code)
+            st.code(raiz_code, language="latex")
+            
+    with aba_pot:
+        col_p1, col_p2, col_p3 = st.columns([1, 1, 2])
+        with col_p1: base = st.text_input("Base", value="x")
+        with col_p2: expoente = st.text_input("Expoente", value="2")
+        with col_p3:
+            st.markdown("**Resultado Visual:**")
+            st.markdown(f"${base}^{{{expoente}}}$")
+            st.code(f"${base}^{{{expoente}}}$", language="latex")
+
+    with aba_simb:
+        st.write("Apenas clique no ícone de copiar no canto do quadro negro e cole no texto:")
+        col_s1, col_s2, col_s3, col_s4 = st.columns(4)
+        with col_s1: st.code("$\\pi$", language="latex") # Pi
+        with col_s2: st.code("$\\in$", language="latex") # Pertence
+        with col_s3: st.code("$\\neq$", language="latex") # Diferente
+        with col_s4: st.code("$\\ge$", language="latex") # Maior ou igual
+
+st.divider()
+
 # --- EDITOR ROBUSTO COM PREVIEW ---
-st.subheader("2. Estrutura do Item (Suporte a LaTeX)")
-
+st.subheader("2. Estrutura do Item")
 col_meta1, col_meta2 = st.columns(2)
-with col_meta1:
-    complexidade = st.select_slider("Complexidade", options=["Fácil", "Intermediária", "Complexa"])
-with col_meta2:
-    tags = st.text_input("Tags", placeholder="Ex: Fração, Geometria")
+with col_meta1: complexidade = st.select_slider("Complexidade", options=["Fácil", "Intermediária", "Complexa"])
+with col_meta2: tags = st.text_input("Tags", placeholder="Ex: Fração, Geometria")
 
-# Dividindo a tela: Esquerda (Edição) / Direita (Preview Real)
 col_editor, col_preview = st.columns([1.2, 1])
 
 with col_editor:
     with st.container(border=True):
         st.markdown("### ✍️ Edição")
-        st.info("Matemática: Use `$` para fórmulas na linha (ex: $\pi r^2$) e `$$` para blocos centrais.")
-        
         texto_base = st.text_area("Texto Base (Opcional)", height=100)
-        img_apoio = st.file_uploader("Imagem do Enunciado (Gráficos/Figuras)", type=['png', 'jpg', 'jpeg'], key="img_base")
+        img_apoio = st.file_uploader("Imagem do Enunciado", type=['png', 'jpg', 'jpeg'], key="img_base")
         enunciado = st.text_area("Enunciado*", height=100)
         
         st.markdown("#### Alternativas")
-        st.caption("Você pode usar fórmulas matemáticas nas alternativas ou subir imagens.")
-        
-        # Transformamos as alternativas em text_areas para caber fórmulas grandes
         alt_A = st.text_area("A)*", height=68, key="txt_a")
-        img_A = st.file_uploader("Imagem A (Opcional)", type=['png', 'jpg'], key="img_a")
+        img_A = st.file_uploader("Imagem A", type=['png', 'jpg'], key="img_a")
         
         alt_B = st.text_area("B)*", height=68, key="txt_b")
-        img_B = st.file_uploader("Imagem B (Opcional)", type=['png', 'jpg'], key="img_b")
+        img_B = st.file_uploader("Imagem B", type=['png', 'jpg'], key="img_b")
         
         alt_C = st.text_area("C)*", height=68, key="txt_c")
-        img_C = st.file_uploader("Imagem C (Opcional)", type=['png', 'jpg'], key="img_c")
+        img_C = st.file_uploader("Imagem C", type=['png', 'jpg'], key="img_c")
         
         alt_D = st.text_area("D)*", height=68, key="txt_d")
-        img_D = st.file_uploader("Imagem D (Opcional)", type=['png', 'jpg'], key="img_d")
+        img_D = st.file_uploader("Imagem D", type=['png', 'jpg'], key="img_d")
         
         gabarito = st.selectbox("Gabarito*", ["A", "B", "C", "D"])
 
 with col_preview:
-    # Esta coluna atualiza em tempo real enquanto o professor digita
     with st.container(border=True):
         st.markdown("### 👀 Visualização Final")
-        st.caption("É assim que a questão aparecerá na prova.")
         st.divider()
-        
-        if texto_base:
-            st.markdown(texto_base)
-        if img_apoio:
-            st.image(img_apoio, use_container_width=True)
-        if enunciado:
-            st.markdown(f"**Questão:** {enunciado}")
-            
+        if texto_base: st.markdown(texto_base)
+        if img_apoio: st.image(img_apoio, use_container_width=True)
+        if enunciado: st.markdown(f"**Questão:** {enunciado}")
         st.markdown("---")
         if alt_A or img_A:
             st.markdown(f"**A)** {alt_A}")
@@ -130,12 +157,9 @@ with col_preview:
 
 st.divider()
 
-# --- BOTÃO DE SALVAMENTO ---
 if st.button("💾 Salvar Item no Banco de Dados", type="primary", use_container_width=True):
     if enunciado and alt_A and alt_B and alt_C and alt_D:
         with st.spinner("Salvando na nuvem..."):
-            
-            # Aqui estruturamos o JSON das alternativas de forma rica
             dict_alternativas = {
                 "A": {"texto": alt_A, "tem_imagem": True if img_A else False},
                 "B": {"texto": alt_B, "tem_imagem": True if img_B else False},
