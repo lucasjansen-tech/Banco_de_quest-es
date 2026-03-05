@@ -68,6 +68,7 @@ with st.sidebar:
     if st.session_state.perfil == "Administrador":
         st.page_link("pages/1_Matrizes.py", label="Gestão de Matrizes", icon="⚙️")
         # O link do painel de usuários vai entrar aqui no próximo passo!
+        st.page_link("pages/3_Gestao_Usuarios.py", label="Gestão de Usuários", icon="👥")
         
     st.page_link("pages/2_Criar_Questao.py", label="Criar Questões", icon="📝")
     
