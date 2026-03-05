@@ -4,7 +4,7 @@ from supabase import create_client
 
 st.set_page_config(page_title="Elaborador de Itens", page_icon="📝", layout="wide")
 
-# --- SEGURANÇA E CONEXÃO ---
+# --- 1. SEGURANÇA E CONEXÃO ---
 if not st.session_state.get('usuario_logado'):
     st.switch_page("app.py")
 
@@ -13,6 +13,7 @@ def init_connection():
     return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 supabase = init_connection()
 
+# --- 2. MENU LATERAL ---
 with st.sidebar:
     st.title("📚 Avalia System")
     st.markdown(f"**👤 {st.session_state.get('perfil', 'Usuário')}**")
@@ -29,7 +30,7 @@ with st.sidebar:
 
 st.title("📝 Estúdio de Criação Avançado")
 
-# --- BUSCANDO MATRIZES ---
+# --- 3. BUSCANDO MATRIZES ---
 @st.cache_data(ttl=600)
 def carregar_matrizes():
     resposta = supabase.table("matrizes").select("id, ano, componente, codigo_habilidade, descricao").execute()
@@ -37,10 +38,10 @@ def carregar_matrizes():
 
 df_matriz = carregar_matrizes()
 if df_matriz.empty:
-    st.error("⛔ Matrizes não carregadas.")
+    st.error("⛔ Matrizes não carregadas. Retorne e faça a importação.")
     st.stop()
 
-# --- FILTROS DINÂMICOS ---
+# --- 4. FILTROS DINÂMICOS ---
 st.subheader("1. Parâmetros Curriculares")
 col_p1, col_p2, col_p3 = st.columns(3)
 with col_p1:
@@ -61,9 +62,7 @@ with col_p3:
 
 st.divider()
 
-# --- EDITOR ROBUSTO COM PREVIEW ---
-st.subheader("2. Estrutura do Item (Suporte a LaTeX)")
-# --- CONSTRUTOR VISUAL DE FÓRMULAS (O "Pulo do Gato" para os professores) ---
+# --- 5. CONSTRUTOR VISUAL DE FÓRMULAS ---
 with st.expander("🧮 Construtor Visual de Fórmulas (Clique aqui se precisar de Matemática)"):
     st.write("Não sabe usar códigos? Preencha os campos abaixo, copie o bloquinho gerado e cole no seu texto!")
     aba_frac, aba_raiz, aba_pot, aba_simb = st.tabs(["➗ Frações", "√ Raízes", "x² Potências", "Ω Símbolos Úteis"])
@@ -99,87 +98,72 @@ with st.expander("🧮 Construtor Visual de Fórmulas (Clique aqui se precisar d
     with aba_simb:
         st.write("Apenas clique no ícone de copiar no canto do quadro negro e cole no texto:")
         col_s1, col_s2, col_s3, col_s4 = st.columns(4)
-        with col_s1: st.code("$\\pi$", language="latex") # Pi
-        with col_s2: st.code("$\\in$", language="latex") # Pertence
-        with col_s3: st.code("$\\neq$", language="latex") # Diferente
-        with col_s4: st.code("$\\ge$", language="latex") # Maior ou igual
+        with col_s1: st.code("$\\pi$", language="latex")
+        with col_s2: st.code("$\\in$", language="latex")
+        with col_s3: st.code("$\\neq$", language="latex")
+        with col_s4: st.code("$\\ge$", language="latex")
 
 st.divider()
 
-# --- EDITOR ROBUSTO COM PREVIEW ---
+# --- 6. EDITOR ROBUSTO COM PREVIEW ---
 st.subheader("2. Estrutura do Item")
 col_meta1, col_meta2 = st.columns(2)
-with col_meta1:
-    complexidade = st.select_slider("Complexidade", options=["Fácil", "Intermediária", "Complexa"])
-with col_meta2:
-    tags = st.text_input("Tags", placeholder="Ex: Fração, Geometria")
 with col_meta1: complexidade = st.select_slider("Complexidade", options=["Fácil", "Intermediária", "Complexa"])
 with col_meta2: tags = st.text_input("Tags", placeholder="Ex: Fração, Geometria")
 
-# Dividindo a tela: Esquerda (Edição) / Direita (Preview Real)
 col_editor, col_preview = st.columns([1.2, 1])
 
 with col_editor:
     with st.container(border=True):
         st.markdown("### ✍️ Edição")
-        st.info("Matemática: Use `$` para fórmulas na linha (ex: $\pi r^2$) e `$$` para blocos centrais.")
-        
         texto_base = st.text_area("Texto Base (Opcional)", height=100)
-        img_apoio = st.file_uploader("Imagem do Enunciado (Gráficos/Figuras)", type=['png', 'jpg', 'jpeg'], key="img_base")
         img_apoio = st.file_uploader("Imagem do Enunciado", type=['png', 'jpg', 'jpeg'], key="img_base")
         enunciado = st.text_area("Enunciado*", height=100)
-
-        st.markdown("#### Alternativas")
-        st.caption("Você pode usar fórmulas matemáticas nas alternativas ou subir imagens.")
         
-        # Transformamos as alternativas em text_areas para caber fórmulas grandes
+        st.markdown("#### Alternativas")
         alt_A = st.text_area("A)*", height=68, key="txt_a")
-        img_A = st.file_uploader("Imagem A (Opcional)", type=['png', 'jpg'], key="img_a")
         img_A = st.file_uploader("Imagem A", type=['png', 'jpg'], key="img_a")
-
+        
         alt_B = st.text_area("B)*", height=68, key="txt_b")
-        img_B = st.file_uploader("Imagem B (Opcional)", type=['png', 'jpg'], key="img_b")
         img_B = st.file_uploader("Imagem B", type=['png', 'jpg'], key="img_b")
-
+        
         alt_C = st.text_area("C)*", height=68, key="txt_c")
-        img_C = st.file_uploader("Imagem C (Opcional)", type=['png', 'jpg'], key="img_c")
         img_C = st.file_uploader("Imagem C", type=['png', 'jpg'], key="img_c")
-
+        
         alt_D = st.text_area("D)*", height=68, key="txt_d")
-        img_D = st.file_uploader("Imagem D (Opcional)", type=['png', 'jpg'], key="img_d")
         img_D = st.file_uploader("Imagem D", type=['png', 'jpg'], key="img_d")
-
+        
         gabarito = st.selectbox("Gabarito*", ["A", "B", "C", "D"])
 
 with col_preview:
-    # Esta coluna atualiza em tempo real enquanto o professor digita
     with st.container(border=True):
         st.markdown("### 👀 Visualização Final")
-        st.caption("É assim que a questão aparecerá na prova.")
         st.divider()
-        
-        if texto_base:
-            st.markdown(texto_base)
-        if img_apoio:
-            st.image(img_apoio, use_container_width=True)
-        if enunciado:
-            st.markdown(f"**Questão:** {enunciado}")
-            
         if texto_base: st.markdown(texto_base)
         if img_apoio: st.image(img_apoio, use_container_width=True)
         if enunciado: st.markdown(f"**Questão:** {enunciado}")
         st.markdown("---")
         if alt_A or img_A:
             st.markdown(f"**A)** {alt_A}")
-@@ -130,37 +157,34 @@
+            if img_A: st.image(img_A, width=150)
+        if alt_B or img_B:
+            st.markdown(f"**B)** {alt_B}")
+            if img_B: st.image(img_B, width=150)
+        if alt_C or img_C:
+            st.markdown(f"**C)** {alt_C}")
+            if img_C: st.image(img_C, width=150)
+        if alt_D or img_D:
+            st.markdown(f"**D)** {alt_D}")
+            if img_D: st.image(img_D, width=150)
 
 st.divider()
 
-# --- BOTÃO DE SALVAMENTO ---
-# Retirei o type="primary" apenas para garantir, mas com o novo config.toml ele ficaria azul.
+# --- 7. BOTÃO DE SALVAMENTO (Corrigido) ---
+# Botão sem a tag type="primary" para não puxar o vermelho do tema padrão
 if st.button("💾 Salvar Item no Banco de Dados", use_container_width=True):
     if enunciado and alt_A and alt_B and alt_C and alt_D:
         with st.spinner("Salvando na nuvem..."):
+            
             dict_alternativas = {
                 "A": {"texto": alt_A, "tem_imagem": True if img_A else False},
                 "B": {"texto": alt_B, "tem_imagem": True if img_B else False},
@@ -187,7 +171,7 @@ if st.button("💾 Salvar Item no Banco de Dados", use_container_width=True):
                 "D": {"texto": alt_D, "tem_imagem": True if img_D else False}
             }
             
-            # PACOTE CORRIGIDO: Exatamente com os nomes das colunas do banco de dados!
+            # Pacote de dados alinhado estritamente com o SQL criado no Supabase
             nova_questao = {
                 "id_habilidade": id_habilidade_banco,
                 "autor": st.session_state.perfil,
@@ -195,7 +179,7 @@ if st.button("💾 Salvar Item no Banco de Dados", use_container_width=True):
                 "complexidade": complexidade,
                 "texto_base": texto_base,
                 "enunciado": enunciado,
-                "imagem_url": None, # Corrigido: O banco espera 'imagem_url', não 'tem_imagem_apoio'
+                "imagem_url": None, # Corrigido para bater com a coluna do banco
                 "alternativas": dict_alternativas,
                 "gabarito": gabarito,
                 "tags": tags
