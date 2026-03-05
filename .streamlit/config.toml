@@ -1,3 +1,9 @@
+[theme]
+primaryColor = "#0056b3"
+backgroundColor = "#0e1117"
+secondaryBackgroundColor = "#262730"
+textColor = "#fafafa"
+
 [server]
 toolbarMode = "minimal"
 headless = true
