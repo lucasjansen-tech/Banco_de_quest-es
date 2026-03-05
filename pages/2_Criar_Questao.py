@@ -1,11 +1,10 @@
 import streamlit as st
 import pandas as pd
 from supabase import create_client
-import json
 
 st.set_page_config(page_title="Elaborador de Itens", page_icon="📝", layout="wide")
 
-# --- 1. SEGURANÇA E CONEXÃO ---
+# --- SEGURANÇA E CONEXÃO ---
 if not st.session_state.get('usuario_logado'):
     st.switch_page("app.py")
 
@@ -14,7 +13,6 @@ def init_connection():
     return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 supabase = init_connection()
 
-# --- MENU LATERAL ---
 with st.sidebar:
     st.title("📚 Avalia System")
     st.markdown(f"**👤 {st.session_state.get('perfil', 'Usuário')}**")
@@ -29,111 +27,140 @@ with st.sidebar:
         st.session_state.perfil = None
         st.switch_page("app.py")
 
-st.title("📝 Estúdio de Criação de Itens")
-st.write("Elabore novas questões alinhadas às matrizes oficiais da rede.")
+st.title("📝 Estúdio de Criação Avançado")
 
-# --- 2. BUSCANDO MATRIZES DO SUPABASE ---
-@st.cache_data(ttl=600) # Faz cache por 10 min para não pesar o banco
+# --- BUSCANDO MATRIZES ---
+@st.cache_data(ttl=600)
 def carregar_matrizes():
     resposta = supabase.table("matrizes").select("id, ano, componente, codigo_habilidade, descricao").execute()
     return pd.DataFrame(resposta.data)
 
 df_matriz = carregar_matrizes()
-
 if df_matriz.empty:
-    st.error("⛔ As matrizes de referência ainda não foram carregadas. Acesso bloqueado.")
+    st.error("⛔ Matrizes não carregadas.")
     st.stop()
 
-# --- 3. FILTROS DINÂMICOS ---
+# --- FILTROS DINÂMICOS ---
 st.subheader("1. Parâmetros Curriculares")
 col_p1, col_p2, col_p3 = st.columns(3)
-
 with col_p1:
-    componentes = df_matriz['componente'].unique().tolist()
-    componente_sel = st.selectbox("Componente Curricular", componentes)
-
+    componente_sel = st.selectbox("Componente", df_matriz['componente'].unique().tolist())
 with col_p2:
-    anos = df_matriz[df_matriz['componente'] == componente_sel]['ano'].unique().tolist()
-    ano_sel = st.selectbox("Ano de Ensino", anos)
-
+    ano_sel = st.selectbox("Ano de Ensino", df_matriz[df_matriz['componente'] == componente_sel]['ano'].unique().tolist())
 with col_p3:
     habs_filtradas = df_matriz[(df_matriz['componente'] == componente_sel) & (df_matriz['ano'] == ano_sel)]
     lista_codigos = habs_filtradas['codigo_habilidade'].tolist()
-    
     if lista_codigos:
-        habilidade_sel = st.selectbox("Habilidade (Descritor)", lista_codigos)
-        
-        # Pega o ID e a Descrição da habilidade selecionada
+        habilidade_sel = st.selectbox("Habilidade", lista_codigos)
         linha_hab = habs_filtradas[habs_filtradas['codigo_habilidade'] == habilidade_sel].iloc[0]
         id_habilidade_banco = linha_hab['id']
         st.caption(f"**Descrição:** {linha_hab['descricao']}")
     else:
-        st.warning("Nenhuma habilidade cadastrada para este filtro.")
+        st.warning("Nenhuma habilidade para este filtro.")
         st.stop()
 
 st.divider()
 
-# --- 4. EDITOR DA QUESTÃO ---
-st.subheader("2. Estrutura do Item")
+# --- EDITOR ROBUSTO COM PREVIEW ---
+st.subheader("2. Estrutura do Item (Suporte a LaTeX)")
 
 col_meta1, col_meta2 = st.columns(2)
 with col_meta1:
-    complexidade = st.select_slider("Complexidade Esperada", options=["Fácil", "Intermediária", "Complexa"])
+    complexidade = st.select_slider("Complexidade", options=["Fácil", "Intermediária", "Complexa"])
 with col_meta2:
-    tags = st.text_input("Tags de Busca (Opcional, separe por vírgula)", placeholder="Ex: Geometria, Frações, Interpretação")
+    tags = st.text_input("Tags", placeholder="Ex: Fração, Geometria")
 
-aba_editor, aba_ia = st.tabs(["✍️ Editor Manual", "🤖 Assistente de IA (Em breve)"])
+# Dividindo a tela: Esquerda (Edição) / Direita (Preview Real)
+col_editor, col_preview = st.columns([1.2, 1])
 
-with aba_editor:
-    with st.form("form_nova_questao", clear_on_submit=True):
-        st.info("💡 Suporta equações matemáticas. Para frações, use a sintaxe LaTeX entre cifrões, ex: $\\frac{1}{2}$")
+with col_editor:
+    with st.container(border=True):
+        st.markdown("### ✍️ Edição")
+        st.info("Matemática: Use `$` para fórmulas na linha (ex: $\pi r^2$) e `$$` para blocos centrais.")
         
-        texto_base = st.text_area("Texto de Apoio / Contextualização (Opcional)", height=150)
-        enunciado = st.text_area("Enunciado (A Pergunta)*", height=100)
+        texto_base = st.text_area("Texto Base (Opcional)", height=100)
+        img_apoio = st.file_uploader("Imagem do Enunciado (Gráficos/Figuras)", type=['png', 'jpg', 'jpeg'], key="img_base")
+        enunciado = st.text_area("Enunciado*", height=100)
         
-        st.write("**Alternativas**")
-        col_alt_a, col_alt_b = st.columns(2)
-        with col_alt_a:
-            alt_A = st.text_input("A)*")
-            alt_C = st.text_input("C)*")
-        with col_alt_b:
-            alt_B = st.text_input("B)*")
-            alt_D = st.text_input("D)*")
+        st.markdown("#### Alternativas")
+        st.caption("Você pode usar fórmulas matemáticas nas alternativas ou subir imagens.")
+        
+        # Transformamos as alternativas em text_areas para caber fórmulas grandes
+        alt_A = st.text_area("A)*", height=68, key="txt_a")
+        img_A = st.file_uploader("Imagem A (Opcional)", type=['png', 'jpg'], key="img_a")
+        
+        alt_B = st.text_area("B)*", height=68, key="txt_b")
+        img_B = st.file_uploader("Imagem B (Opcional)", type=['png', 'jpg'], key="img_b")
+        
+        alt_C = st.text_area("C)*", height=68, key="txt_c")
+        img_C = st.file_uploader("Imagem C (Opcional)", type=['png', 'jpg'], key="img_c")
+        
+        alt_D = st.text_area("D)*", height=68, key="txt_d")
+        img_D = st.file_uploader("Imagem D (Opcional)", type=['png', 'jpg'], key="img_d")
+        
+        gabarito = st.selectbox("Gabarito*", ["A", "B", "C", "D"])
+
+with col_preview:
+    # Esta coluna atualiza em tempo real enquanto o professor digita
+    with st.container(border=True):
+        st.markdown("### 👀 Visualização Final")
+        st.caption("É assim que a questão aparecerá na prova.")
+        st.divider()
+        
+        if texto_base:
+            st.markdown(texto_base)
+        if img_apoio:
+            st.image(img_apoio, use_container_width=True)
+        if enunciado:
+            st.markdown(f"**Questão:** {enunciado}")
             
-        gabarito = st.selectbox("Gabarito Correto*", ["A", "B", "C", "D"])
-        status_salvamento = st.radio("Salvar como:", ["Concluída", "Rascunho"], horizontal=True)
-        
-        submit_questao = st.form_submit_button("💾 Salvar Item no Banco de Dados", type="primary")
-        
-        if submit_questao:
-            if enunciado and alt_A and alt_B and alt_C and alt_D:
-                with st.spinner("Salvando na nuvem..."):
-                    # Prepara o JSON das alternativas
-                    dict_alternativas = {"A": alt_A, "B": alt_B, "C": alt_C, "D": alt_D}
-                    
-                    # Monta o pacote de dados para o Supabase
-                    nova_questao = {
-                        "id_habilidade": id_habilidade_banco,
-                        "autor": st.session_state.perfil,
-                        "status": status_salvamento,
-                        "complexidade": complexidade,
-                        "texto_base": texto_base,
-                        "enunciado": enunciado,
-                        "alternativas": dict_alternativas, # O Supabase entende JSON automaticamente
-                        "gabarito": gabarito,
-                        "tags": tags
-                    }
-                    
-                    try:
-                        # Executa o INSERT no Supabase
-                        resposta = supabase.table("questoes").insert(nova_questao).execute()
-                        st.success("✅ Item salvo com sucesso no banco oficial!")
-                        st.balloons()
-                    except Exception as e:
-                        st.error(f"Erro ao salvar no banco: {e}")
-            else:
-                st.error("Preencha o enunciado e todas as alternativas para salvar.")
+        st.markdown("---")
+        if alt_A or img_A:
+            st.markdown(f"**A)** {alt_A}")
+            if img_A: st.image(img_A, width=150)
+        if alt_B or img_B:
+            st.markdown(f"**B)** {alt_B}")
+            if img_B: st.image(img_B, width=150)
+        if alt_C or img_C:
+            st.markdown(f"**C)** {alt_C}")
+            if img_C: st.image(img_C, width=150)
+        if alt_D or img_D:
+            st.markdown(f"**D)** {alt_D}")
+            if img_D: st.image(img_D, width=150)
 
-with aba_ia:
-    st.subheader("Gerador e Revisor Inteligente")
-    st.write("A conexão com o Google Gemini será ativada aqui no próximo passo.")
+st.divider()
+
+# --- BOTÃO DE SALVAMENTO ---
+if st.button("💾 Salvar Item no Banco de Dados", type="primary", use_container_width=True):
+    if enunciado and alt_A and alt_B and alt_C and alt_D:
+        with st.spinner("Salvando na nuvem..."):
+            
+            # Aqui estruturamos o JSON das alternativas de forma rica
+            dict_alternativas = {
+                "A": {"texto": alt_A, "tem_imagem": True if img_A else False},
+                "B": {"texto": alt_B, "tem_imagem": True if img_B else False},
+                "C": {"texto": alt_C, "tem_imagem": True if img_C else False},
+                "D": {"texto": alt_D, "tem_imagem": True if img_D else False}
+            }
+            
+            nova_questao = {
+                "id_habilidade": id_habilidade_banco,
+                "autor": st.session_state.perfil,
+                "status": "Concluída",
+                "complexidade": complexidade,
+                "texto_base": texto_base,
+                "enunciado": enunciado,
+                "tem_imagem_apoio": True if img_apoio else False,
+                "alternativas": dict_alternativas,
+                "gabarito": gabarito,
+                "tags": tags
+            }
+            
+            try:
+                supabase.table("questoes").insert(nova_questao).execute()
+                st.success("✅ Questão com formatação avançada salva com sucesso!")
+                st.balloons()
+            except Exception as e:
+                st.error(f"Erro ao salvar no banco: {e}")
+    else:
+        st.error("Preencha o enunciado e o texto de todas as alternativas para salvar.")
