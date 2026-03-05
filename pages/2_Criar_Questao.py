@@ -240,9 +240,10 @@ if st.button("💾 Salvar Item no Banco de Dados", use_container_width=True):
                 "D": {"texto": alt_D, "tem_imagem": True if img_D else False}
             }
             
+# Pacote de dados alinhado estritamente com o SQL criado no Supabase
             nova_questao = {
                 "id_habilidade": id_habilidade_banco,
-                "autor": st.session_state.perfil,
+                "autor": st.session_state.nome_usuario, # <--- AQUI ESTÁ A ALTERAÇÃO!
                 "status": "Concluída",
                 "complexidade": complexidade,
                 "texto_base": texto_base,
