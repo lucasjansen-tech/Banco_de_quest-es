@@ -61,9 +61,9 @@ with col_p3:
 
 st.divider()
 
-# --- CATÁLOGO DE SÍMBOLOS MATEMÁTICOS (EXPANDIDO) ---
+# --- CATÁLOGO DE SÍMBOLOS MATEMÁTICOS COM PRÉ-VISUALIZAÇÃO ---
 with st.expander("🧮 Catálogo de Fórmulas e Símbolos (Clique para abrir)"):
-    st.write("Copie o código do quadro negro e cole no seu texto. Ele se transformará no símbolo automaticamente.")
+    st.write("Veja o símbolo, copie o código no botão superior direito do quadro negro e cole no seu texto.")
     aba_construtor, aba_geo, aba_grego, aba_conj = st.tabs(["🔨 Construtor Básico", "📐 Geometria", "α Letras Gregas", "⋃ Conjuntos"])
     
     with aba_construtor:
@@ -71,38 +71,105 @@ with st.expander("🧮 Catálogo de Fórmulas e Símbolos (Clique para abrir)"):
         col_f1, col_f2, col_f3 = st.columns([1, 1, 2])
         with col_f1: num = st.text_input("Numerador", value="1")
         with col_f2: den = st.text_input("Denominador", value="2")
-        with col_f3: st.code(f"$\\frac{{{num}}}{{{den}}}$", language="latex")
+        with col_f3: 
+            st.markdown(f"**Visualização:** $\\frac{{{num}}}{{{den}}}$")
+            st.code(f"$\\frac{{{num}}}{{{den}}}$", language="latex")
         
+        st.divider()
         col_r1, col_r2, col_r3 = st.columns([1, 1, 2])
         with col_r1: indice = st.text_input("Índice da Raiz", value="3")
         with col_r2: valor = st.text_input("Valor interno", value="x")
-        with col_r3: st.code(f"$\\sqrt[{indice}]{{{valor}}}$" if indice else f"$\\sqrt{{{valor}}}$", language="latex")
+        with col_r3: 
+            raiz_calc = f"$\\sqrt[{indice}]{{{valor}}}$" if indice else f"$\\sqrt{{{valor}}}$"
+            st.markdown(f"**Visualização:** {raiz_calc}")
+            st.code(raiz_calc, language="latex")
 
     with aba_geo:
         c1, c2, c3, c4 = st.columns(4)
-        with c1: st.code("Grau: $90^\\circ$", language="latex")
-        with c2: st.code("Ângulo: $\\angle A$", language="latex")
-        with c3: st.code("Triângulo: $\\triangle ABC$", language="latex")
-        with c4: st.code("Perpendicular: $\\perp$", language="latex")
+        with c1: 
+            st.markdown("Grau: $90^\\circ$")
+            st.code("$90^\\circ$", language="latex")
+        with c2: 
+            st.markdown("Ângulo: $\\angle A$")
+            st.code("$\\angle A$", language="latex")
+        with c3: 
+            st.markdown("Triângulo: $\\triangle ABC$")
+            st.code("$\\triangle ABC$", language="latex")
+        with c4: 
+            st.markdown("Perpendicular: $\\perp$")
+            st.code("$\\perp$", language="latex")
+        
         c5, c6, c7, c8 = st.columns(4)
-        with c5: st.code("Paralelo: $\\parallel$", language="latex")
-        with c6: st.code("Congruente: $\\cong$", language="latex")
-        with c7: st.code("Vetor: $\\vec{v}$", language="latex")
-        with c8: st.code("Pi: $\\pi$", language="latex")
+        with c5: 
+            st.markdown("Paralelo: $\\parallel$")
+            st.code("$\\parallel$", language="latex")
+        with c6: 
+            st.markdown("Congruente: $\\cong$")
+            st.code("$\\cong$", language="latex")
+        with c7: 
+            st.markdown("Vetor: $\\vec{v}$")
+            st.code("$\\vec{v}$", language="latex")
+        with c8: 
+            st.markdown("Pi: $\\pi$")
+            st.code("$\\pi$", language="latex")
 
     with aba_grego:
         c1, c2, c3, c4 = st.columns(4)
-        with c1: st.code("Alfa: $\\alpha$", language="latex")
-        with c2: st.code("Beta: $\\beta$", language="latex")
-        with c3: st.code("Teta: $\\theta$", language="latex")
-        with c4: st.code("Gama: $\\gamma$", language="latex")
+        with c1: 
+            st.markdown("Alfa: $\\alpha$")
+            st.code("$\\alpha$", language="latex")
+        with c2: 
+            st.markdown("Beta: $\\beta$")
+            st.code("$\\beta$", language="latex")
+        with c3: 
+            st.markdown("Teta: $\\theta$")
+            st.code("$\\theta$", language="latex")
+        with c4: 
+            st.markdown("Gama: $\\gamma$")
+            st.code("$\\gamma$", language="latex")
+            
+        c5, c6, c7, c8 = st.columns(4)
+        with c5: 
+            st.markdown("Delta: $\\Delta$")
+            st.code("$\\Delta$", language="latex")
+        with c6: 
+            st.markdown("Sigma: $\\Sigma$")
+            st.code("$\\Sigma$", language="latex")
+        with c7: 
+            st.markdown("Ômega: $\\Omega$")
+            st.code("$\\Omega$", language="latex")
+        with c8: 
+            st.markdown("Mi (Micro): $\\mu$")
+            st.code("$\\mu$", language="latex")
 
     with aba_conj:
         c1, c2, c3, c4 = st.columns(4)
-        with c1: st.code("Pertence: $\\in$", language="latex")
-        with c2: st.code("Não pertence: $\\notin$", language="latex")
-        with c3: st.code("União: $\\cup$", language="latex")
-        with c4: st.code("Interseção: $\\cap$", language="latex")
+        with c1: 
+            st.markdown("Pertence: $\\in$")
+            st.code("$\\in$", language="latex")
+        with c2: 
+            st.markdown("Não pertence: $\\notin$")
+            st.code("$\\notin$", language="latex")
+        with c3: 
+            st.markdown("União: $\\cup$")
+            st.code("$\\cup$", language="latex")
+        with c4: 
+            st.markdown("Interseção: $\\cap$")
+            st.code("$\\cap$", language="latex")
+            
+        c5, c6, c7, c8 = st.columns(4)
+        with c5: 
+            st.markdown("Contido: $\\subset$")
+            st.code("$\\subset$", language="latex")
+        with c6: 
+            st.markdown("Não contido: $\\not\\subset$")
+            st.code("$\\not\\subset$", language="latex")
+        with c7: 
+            st.markdown("Contém: $\\supset$")
+            st.code("$\\supset$", language="latex")
+        with c8: 
+            st.markdown("Vazio: $\\emptyset$")
+            st.code("$\\emptyset$", language="latex")
 
 st.divider()
 
