@@ -3,6 +3,9 @@ import pandas as pd
 from supabase import create_client
 import google.generativeai as genai
 import json
+import io
+import uuid
+from PIL import Image
 
 st.set_page_config(page_title="Elaborador de Itens", page_icon="📝", layout="wide")
 
@@ -25,6 +28,42 @@ try:
                 modelo_ia = genai.GenerativeModel(m.name)
 except Exception as e:
     st.error(f"Erro de IA: {e}")
+
+# --- FUNÇÃO NINJA DE COMPRESSÃO E UPLOAD DE IMAGENS ---
+def processar_e_subir_imagem(arquivo_upload, prefixo):
+    if arquivo_upload is None:
+        return None
+    try:
+        # 1. Abre a imagem e prepara para compressão
+        imagem = Image.open(arquivo_upload)
+        if imagem.mode in ("RGBA", "P"): 
+            imagem = imagem.convert("RGB") # Remove fundo transparente para JPG
+            
+        # 2. Redimensiona se for muito grande (Max 1024px)
+        imagem.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+        
+        # 3. Transforma em bytes levinhos (Qualidade 85%)
+        img_byte_arr = io.BytesIO()
+        imagem.save(img_byte_arr, format='JPEG', quality=85)
+        img_bytes = img_byte_arr.getvalue()
+        
+        # 4. Cria um nome único e sobe para o Supabase
+        nome_arquivo = f"{prefixo}_{uuid.uuid4().hex[:8]}.jpg"
+        
+        supabase.storage.from_("imagens_questoes").upload(
+            file=img_bytes, 
+            path=nome_arquivo, 
+            file_options={"content-type": "image/jpeg"}
+        )
+        
+        # 5. Retorna o link público da imagem salva
+        url_publica = supabase.storage.from_("imagens_questoes").get_public_url(nome_arquivo)
+        return url_publica
+        
+    except Exception as e:
+        st.error(f"Erro ao salvar a imagem {prefixo}: {e}")
+        return None
+
 
 # --- 2. MENU LATERAL ---
 with st.sidebar:
@@ -93,12 +132,10 @@ if df_matriz.empty:
 with st.expander("⚙️ Parâmetros Curriculares e Construtor de Fórmulas", expanded=True):
     col_p1, col_p2, col_p3 = st.columns(3)
     
-    # BLINDAGEM ROBUSTA DE COMPONENTE
     todos_componentes = df_matriz['componente'].unique().tolist()
     if st.session_state.get('perfil') == "Elaborador":
         comp_prof = st.session_state.get('componente', '')
         match_comp = next((c for c in todos_componentes if str(c).strip().upper() == str(comp_prof).strip().upper()), None)
-        
         if match_comp:
             lista_componentes = [match_comp]
         else:
@@ -131,7 +168,6 @@ with st.expander("⚙️ Parâmetros Curriculares e Construtor de Fórmulas", ex
 
     st.divider()
     
-    # --- NOVO CONSTRUTOR MATEMÁTICO VISUAL ---
     st.markdown("### 🧮 Construtor Matemático")
     st.info("💡 **Dica de Uso:** Ajuste os valores, veja a **Pré-visualização**, copie o código no quadro preto e cole no seu texto. Na caixa de digitação ele ficará como código, mas na Visualização Final (à direita) ele se transformará na fórmula!")
     
@@ -210,19 +246,11 @@ with col_editor:
     with col_m1: complexidade = st.select_slider("Nível", options=opcoes_permitidas)
     with col_m2: tags = st.text_input("Tags", value=val_tags)
 
-    # ==========================================
-    # BLOCO 1: CONTEXTO E COMANDO
-    # ==========================================
     with st.container(border=True):
         st.markdown("### 1️⃣ Bloco de Contexto")
-        
         st.write("**Texto de Apoio (Opcional)**")
         
-        # Define o estado inicial do rádio botão com base no id existente
-        idx_radio = 0
-        if val_id_texto_base:
-            idx_radio = 1 # "Selecionar do Acervo"
-            
+        idx_radio = 1 if val_id_texto_base else 0
         tipo_texto = st.radio("Origem:", ["Nenhum", "Selecionar do Acervo", "Cadastrar Novo"], horizontal=True, index=idx_radio)
         
         texto_base_final = ""
@@ -234,7 +262,6 @@ with col_editor:
                 titulos_dict = dict(zip(df_textos.titulo, df_textos.id))
                 opcoes_titulos = ["-- Selecione --"] + list(titulos_dict.keys())
                 
-                # Se estava editando/clonando, tenta achar o título atual para selecionar
                 idx_selecionado = 0
                 if id_texto_final in df_textos.id.values:
                     titulo_atual = df_textos[df_textos['id'] == id_texto_final]['titulo'].values[0]
@@ -255,7 +282,7 @@ with col_editor:
             titulo_novo = st.text_input("Título do Novo Texto")
             texto_base_final = st.text_area("Conteúdo do Texto", height=100)
 
-        img_apoio = st.file_uploader("Imagem do Enunciado", type=['png', 'jpg'])
+        img_apoio = st.file_uploader("Imagem do Enunciado", type=['png', 'jpg', 'jpeg'], key="up_img_apoio")
         enunciado_input = st.text_area("Enunciado (A Pergunta)*", value=val_enunciado, height=100)
         
         if st.button("✨ Revisar Contexto e Imagem", use_container_width=True):
@@ -273,9 +300,6 @@ with col_editor:
                 except Exception as e:
                     st.error(f"Erro ao formatar a revisão da IA. Tente novamente.")
 
-    # ==========================================
-    # BLOCO 2: ALTERNATIVAS
-    # ==========================================
     with st.container(border=True):
         st.markdown("### 2️⃣ Bloco de Alternativas")
         lista_gabarito = ["A", "B", "C", "D"]
@@ -285,20 +309,17 @@ with col_editor:
         st.caption("⚠️ **Aviso de Imagens:** Suba imagens individuais (Apenas o gráfico da letra A, por exemplo).")
         
         alt_A = st.text_area("A)", value=val_alt_a, height=68)
-        img_A = st.file_uploader("Img A", type=['png', 'jpg'], key="img_a")
+        img_A = st.file_uploader("Img A", type=['png', 'jpg', 'jpeg'], key="up_img_a")
         
         alt_B = st.text_area("B)", value=val_alt_b, height=68)
-        img_B = st.file_uploader("Img B", type=['png', 'jpg'], key="img_b")
+        img_B = st.file_uploader("Img B", type=['png', 'jpg', 'jpeg'], key="up_img_b")
         
         alt_C = st.text_area("C)", value=val_alt_c, height=68)
-        img_C = st.file_uploader("Img C", type=['png', 'jpg'], key="img_c")
+        img_C = st.file_uploader("Img C", type=['png', 'jpg', 'jpeg'], key="up_img_c")
         
         alt_D = st.text_area("D)", value=val_alt_d, height=68)
-        img_D = st.file_uploader("Img D", type=['png', 'jpg'], key="img_d")
+        img_D = st.file_uploader("Img D", type=['png', 'jpg', 'jpeg'], key="up_img_d")
 
-    # ==========================================
-    # BLOCO 3: RESOLUÇÃO
-    # ==========================================
     with st.container(border=True):
         st.markdown("### 3️⃣ Bloco de Resolução")
         resolucao_input = st.text_area("Passo a passo da resposta", value=val_resolucao, height=100)
@@ -339,12 +360,12 @@ with col_preview:
 
 st.divider()
 
-# --- 7. GRAVAÇÃO SEGURA NO BANCO ---
+# --- 7. GRAVAÇÃO SEGURA NO BANCO E NO STORAGE ---
 texto_botao = "🔄 Atualizar Questão" if modo_atual == "edicao" else "💾 Salvar Questão"
 
 if st.button(texto_botao, use_container_width=True, type="primary"):
     if enunciado_input and alt_A and alt_B and alt_C and alt_D:
-        with st.spinner("Gravando no banco oficial..."):
+        with st.spinner("Processando imagens e salvando no banco..."):
             
             # 1. Verifica Textos Base Novos
             if tipo_texto == "Cadastrar Novo" and titulo_novo and texto_base_final:
@@ -358,12 +379,20 @@ if st.button(texto_botao, use_container_width=True, type="primary"):
             elif tipo_texto == "Nenhum":
                 id_texto_final = None
             
-            # 2. Pacote da Questão
+            # 2. UPLOAD DAS IMAGENS PARA A NUVEM
+            # Só sobe o que foi preenchido. O processo já comprime o arquivo.
+            url_img_apoio = processar_e_subir_imagem(img_apoio, "enunciado")
+            url_img_A = processar_e_subir_imagem(img_A, "altA")
+            url_img_B = processar_e_subir_imagem(img_B, "altB")
+            url_img_C = processar_e_subir_imagem(img_C, "altC")
+            url_img_D = processar_e_subir_imagem(img_D, "altD")
+            
+            # 3. Pacote da Questão com os Links Oficiais das Imagens
             dict_alternativas = {
-                "A": {"texto": alt_A, "tem_imagem": True if img_A else False},
-                "B": {"texto": alt_B, "tem_imagem": True if img_B else False},
-                "C": {"texto": alt_C, "tem_imagem": True if img_C else False},
-                "D": {"texto": alt_D, "tem_imagem": True if img_D else False}
+                "A": {"texto": alt_A, "tem_imagem": True if url_img_A else False, "imagem_url": url_img_A},
+                "B": {"texto": alt_B, "tem_imagem": True if url_img_B else False, "imagem_url": url_img_B},
+                "C": {"texto": alt_C, "tem_imagem": True if url_img_C else False, "imagem_url": url_img_C},
+                "D": {"texto": alt_D, "tem_imagem": True if url_img_D else False, "imagem_url": url_img_D}
             }
             
             nova_questao = {
@@ -373,22 +402,22 @@ if st.button(texto_botao, use_container_width=True, type="primary"):
                 "status": "Concluída",
                 "complexidade": complexidade,
                 "enunciado": enunciado_input,
-                "imagem_url": None, # Próximo passo: Conectar ao Storage do Supabase!
+                "imagem_url": url_img_apoio, # Link final do Supabase
                 "alternativas": dict_alternativas,
                 "gabarito": gabarito,
                 "resolucao": resolucao_input,
                 "tags": tags
             }
             
-            # 3. Execução
+            # 4. Execução no Banco de Dados
             try:
                 if modo_atual == "edicao" and origem:
                     supabase.table("questoes").update(nova_questao).eq("id", origem['id']).execute()
-                    st.success("✅ Questão atualizada!")
+                    st.success("✅ Questão e imagens atualizadas!")
                     if 'edit_mode' in st.session_state: del st.session_state.edit_mode
                 else:
                     supabase.table("questoes").insert(nova_questao).execute()
-                    st.success("✅ Nova questão salva!")
+                    st.success("✅ Nova questão e imagens salvas na nuvem!")
                     if 'clone_mode' in st.session_state: del st.session_state.clone_mode
                 
                 # Recarrega a página para limpar os campos após sucesso
