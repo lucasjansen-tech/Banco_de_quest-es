@@ -92,7 +92,19 @@ if df_matriz.empty:
 # --- 5. PARÂMETROS E CATÁLOGO MATEMÁTICO ---
 with st.expander("⚙️ Parâmetros Curriculares e Fórmulas", expanded=False):
     col_p1, col_p2, col_p3 = st.columns(3)
-    with col_p1: componente_sel = st.selectbox("Componente", df_matriz['componente'].unique().tolist())
+    # LÓGICA DE BLINDAGEM DE COMPONENTE
+    todos_componentes = df_matriz['componente'].unique().tolist()
+    if st.session_state.get('perfil') == "Elaborador":
+        comp_prof = st.session_state.get('componente')
+        if comp_prof and comp_prof in todos_componentes:
+            lista_componentes = [comp_prof] # Trava a lista com apenas a matéria dele
+        else:
+            st.error(f"Você está cadastrado em '{comp_prof}', mas não há matrizes importadas para essa matéria ainda.")
+            st.stop()
+    else:
+        lista_componentes = todos_componentes # Administrador vê todas as opções
+
+    with col_p1: componente_sel = st.selectbox("Componente", lista_componentes)
     with col_p2: ano_sel = st.selectbox("Ano de Ensino", df_matriz[df_matriz['componente'] == componente_sel]['ano'].unique().tolist())
     with col_p3:
         habs_filtradas = df_matriz[(df_matriz['componente'] == componente_sel) & (df_matriz['ano'] == ano_sel)]
