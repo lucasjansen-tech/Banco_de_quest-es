@@ -12,7 +12,7 @@ Pillow
 python-docx
 
 # --- Inteligência Artificial ---
-google-generativeai
+google-generativeai>=0.5.2
 
 # --- Backend e Segurança ---
 python-dotenv
