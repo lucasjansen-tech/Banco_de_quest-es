@@ -90,15 +90,13 @@ if df_matriz.empty:
     st.stop()
 
 # --- 5. PARÂMETROS E CATÁLOGO MATEMÁTICO ---
-with st.expander("⚙️ Parâmetros Curriculares e Fórmulas", expanded=True):
+with st.expander("⚙️ Parâmetros Curriculares e Construtor de Fórmulas", expanded=True):
     col_p1, col_p2, col_p3 = st.columns(3)
     
-    # BLINDAGEM ROBUSTA DE COMPONENTE (Ignora Maiúsculas/Minúsculas)
+    # BLINDAGEM ROBUSTA DE COMPONENTE
     todos_componentes = df_matriz['componente'].unique().tolist()
     if st.session_state.get('perfil') == "Elaborador":
         comp_prof = st.session_state.get('componente', '')
-        
-        # Busca correspondência exata ignorando case
         match_comp = next((c for c in todos_componentes if str(c).strip().upper() == str(comp_prof).strip().upper()), None)
         
         if match_comp:
@@ -107,11 +105,10 @@ with st.expander("⚙️ Parâmetros Curriculares e Fórmulas", expanded=True):
             st.error(f"Sua disciplina é '{comp_prof}', mas não há matrizes para ela no banco. Fale com a Coordenação.")
             st.stop()
     else:
-        lista_componentes = todos_componentes # Admin vê tudo
+        lista_componentes = todos_componentes
 
     with col_p1: componente_sel = st.selectbox("Componente", lista_componentes)
     
-    # Filtro cascata com trava de segurança
     anos_disponiveis = df_matriz[df_matriz['componente'] == componente_sel]['ano'].unique().tolist()
     if not anos_disponiveis:
         st.warning(f"Nenhum ano escolar encontrado para {componente_sel}.")
@@ -133,42 +130,74 @@ with st.expander("⚙️ Parâmetros Curriculares e Fórmulas", expanded=True):
     st.caption(f"**Matriz:** {linha_hab['descricao']}")
 
     st.divider()
-    st.markdown("🧮 **Construtor Matemático Avançado (Copie o código LaTeX gerado e cole no texto)**")
+    
+    # --- NOVO CONSTRUTOR MATEMÁTICO VISUAL ---
+    st.markdown("### 🧮 Construtor Matemático")
+    st.info("💡 **Dica de Uso:** Ajuste os valores, veja a **Pré-visualização**, copie o código no quadro preto e cole no seu texto. Na caixa de digitação ele ficará como código, mas na Visualização Final (à direita) ele se transformará na fórmula!")
+    
     t_frac, t_pot, t_raiz, t_trig, t_simb = st.tabs(["➗ Frações", "x² Potências", "√ Raízes", "📐 Geometria/Trig", "Ω Símbolos"])
     
     with t_frac:
-        c1, c2, c3 = st.columns([1,1,2])
-        with c1: num = st.text_input("Numerador", "1")
-        with c2: den = st.text_input("Denominador", "2")
-        with c3: st.markdown(f"Visual: $\\frac{{{num}}}{{{den}}}$"); st.code(f"$\\frac{{{num}}}{{{den}}}$", language="latex")
+        c1, c2 = st.columns(2)
+        with c1: 
+            num = st.text_input("Numerador (Parte de cima)", "1", key="num_f")
+            den = st.text_input("Denominador (Parte de baixo)", "2", key="den_f")
+        with c2: 
+            st.write("**Pré-visualização Real:**")
+            codigo_latex = f"\\frac{{{num}}}{{{den}}}"
+            st.latex(codigo_latex)
+            st.code(f"${codigo_latex}$", language="latex")
     
     with t_pot:
-        c1, c2, c3 = st.columns([1,1,2])
-        with c1: base = st.text_input("Base", "x")
-        with c2: exp = st.text_input("Expoente", "2")
-        with c3: st.markdown(f"Visual: ${base}^{{{exp}}}$"); st.code(f"${base}^{{{exp}}}$", language="latex")
-        
+        c1, c2 = st.columns(2)
+        with c1: 
+            base = st.text_input("Base (Número principal)", "x", key="base_p")
+            exp = st.text_input("Expoente (Número elevado)", "2", key="exp_p")
+        with c2: 
+            st.write("**Pré-visualização Real:**")
+            codigo_latex = f"{base}^{{{exp}}}"
+            st.latex(codigo_latex)
+            st.code(f"${codigo_latex}$", language="latex")
+            
     with t_raiz:
-        c1, c2, c3 = st.columns([1,1,2])
-        with c1: ind = st.text_input("Índice (vazio para quadrada)", "")
-        with c2: val = st.text_input("Interno", "x")
-        with c3: 
-            codigo_raiz = f"$\\sqrt[{ind}]{{{val}}}$" if ind else f"$\\sqrt{{{val}}}$"
-            st.markdown(f"Visual: {codigo_raiz}"); st.code(codigo_raiz, language="latex")
+        c1, c2 = st.columns(2)
+        with c1: 
+            ind = st.text_input("Índice (Ex: 3 para cúbica. Deixe vazio para quadrada)", "", key="ind_r")
+            val = st.text_input("Valor Interno", "x", key="val_r")
+        with c2: 
+            st.write("**Pré-visualização Real:**")
+            codigo_latex = f"\\sqrt[{ind}]{{{val}}}" if ind else f"\\sqrt{{{val}}}"
+            st.latex(codigo_latex)
+            st.code(f"${codigo_latex}$", language="latex")
             
     with t_trig:
+        st.write("**Pré-visualizações e Códigos Prontos:**")
         c1, c2, c3 = st.columns(3)
-        with c1: st.code(r"\sin(\theta)", language="latex"); st.code(r"\cos(\theta)", language="latex")
-        with c2: st.code(r"\tan(\theta)", language="latex"); st.code(r"\pi", language="latex")
-        with c3: st.code(r"90^\circ", language="latex"); st.code(r"\triangle ABC", language="latex")
-        
+        with c1: 
+            st.latex(r"\sin(\theta)"); st.code(r"$\sin(\theta)$", language="latex")
+            st.latex(r"\cos(\theta)"); st.code(r"$\cos(\theta)$", language="latex")
+        with c2: 
+            st.latex(r"\tan(\theta)"); st.code(r"$\tan(\theta)$", language="latex")
+            st.latex(r"\pi"); st.code(r"$\pi$", language="latex")
+        with c3: 
+            st.latex(r"90^\circ"); st.code(r"$90^\circ$", language="latex")
+            st.latex(r"\triangle ABC"); st.code(r"$\triangle ABC$", language="latex")
+            
     with t_simb:
+        st.write("**Pré-visualizações e Códigos Prontos:**")
         c1, c2, c3, c4 = st.columns(4)
-        with c1: st.code(r"\alpha", language="latex"); st.code(r"\beta", language="latex")
-        with c2: st.code(r"\ge", language="latex"); st.code(r"\le", language="latex")
-        with c3: st.code(r"\in", language="latex"); st.code(r"\notin", language="latex")
-        with c4: st.code(r"\approx", language="latex"); st.code(r"\neq", language="latex")
-
+        with c1: 
+            st.latex(r"\alpha"); st.code(r"$\alpha$", language="latex")
+            st.latex(r"\beta"); st.code(r"$\beta$", language="latex")
+        with c2: 
+            st.latex(r"\ge"); st.code(r"$\ge$", language="latex")
+            st.latex(r"\le"); st.code(r"$\le$", language="latex")
+        with c3: 
+            st.latex(r"\in"); st.code(r"$\in$", language="latex")
+            st.latex(r"\notin"); st.code(r"$\notin$", language="latex")
+        with c4: 
+            st.latex(r"\approx"); st.code(r"$\approx$", language="latex")
+            st.latex(r"\neq"); st.code(r"$\neq$", language="latex")
 # --- 6. O EDITOR EM BLOCOS ---
 opcoes_niveis = ["Fácil", "Intermediária", "Complexa"]
 opcoes_permitidas = opcoes_niveis[opcoes_niveis.index(origem.get('complexidade', 'Fácil')):] if modo_atual == "clone" and origem else opcoes_niveis
