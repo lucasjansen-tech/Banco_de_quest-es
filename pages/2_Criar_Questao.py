@@ -198,6 +198,7 @@ with st.expander("⚙️ Parâmetros Curriculares e Construtor de Fórmulas", ex
         with c4: 
             st.latex(r"\approx"); st.code(r"$\approx$", language="latex")
             st.latex(r"\neq"); st.code(r"$\neq$", language="latex")
+
 # --- 6. O EDITOR EM BLOCOS ---
 opcoes_niveis = ["Fácil", "Intermediária", "Complexa"]
 opcoes_permitidas = opcoes_niveis[opcoes_niveis.index(origem.get('complexidade', 'Fácil')):] if modo_atual == "clone" and origem else opcoes_niveis
@@ -259,7 +260,9 @@ with col_editor:
         
         if st.button("✨ Revisar Contexto e Imagem", use_container_width=True):
             with st.spinner("Analisando alinhamento..."):
-                prompt_ctx = f"""Atue como revisor pedagógico. Revise a clareza deste enunciado escolar: '{enunciado_input}'. Texto base associado: '{texto_base_final}'. Avise se a imagem (se houver) precisa de elementos específicos para o enunciado fazer sentido. Retorne ESTRITAMENTE em formato JSON puro: {{"enunciado": "...", "aviso_imagem": "..."}}"""
+                prompt_ctx = f"""Atue como revisor pedagógico. Revise a clareza deste enunciado escolar: '{enunciado_input}'. Texto base associado: '{texto_base_final}'. Avise se a imagem (se houver) precisa de elementos específicos para o enunciado fazer sentido. 
+                ATENÇÃO: Se houver fórmulas matemáticas (com $), preserve-as EXATAMENTE como estão. Para não quebrar o JSON, use escape duplo nas barras invertidas das fórmulas (ex: escreva \\\\frac em vez de \\frac).
+                Retorne ESTRITAMENTE em formato JSON puro, sem marcações markdown: {{"enunciado": "...", "aviso_imagem": "..."}}"""
                 try:
                     res = modelo_ia.generate_content(prompt_ctx)
                     texto_json = res.text.replace("```json", "").replace("```", "").strip()
@@ -307,7 +310,8 @@ with col_editor:
                 with st.spinner("Resolvendo a questão..."):
                     dicionario_alts = {"A": alt_A, "B": alt_B, "C": alt_C, "D": alt_D}
                     resposta_correta = dicionario_alts.get(gabarito, "")
-                    prompt_res = f"Atue como professor. Resolva esta questão passo a passo, justificando a resposta correta '{gabarito}) {resposta_correta}'. Enunciado: {enunciado_input}. Seja direto e didático."
+                    prompt_res = f"""Atue como professor. Resolva esta questão passo a passo, justificando a resposta correta '{gabarito}) {resposta_correta}'. Enunciado: {enunciado_input}. 
+                    Seja direto e didático. Se precisar escrever fórmulas matemáticas na explicação, utilize SEMPRE a formatação LaTeX entre sinais de cifrão (exemplo: $\\frac{{1}}{{2}}$ ou $x^2$)."""
                     try:
                         res_resolucao = modelo_ia.generate_content(prompt_res)
                         st.success("Resolução gerada!")
