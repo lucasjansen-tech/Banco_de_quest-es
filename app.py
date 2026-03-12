@@ -10,15 +10,17 @@ def init_connection():
     return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 supabase = init_connection()
 
-# 3. Variáveis de Sessão de Login
+# 3. Variáveis de Sessão
 if 'usuario_logado' not in st.session_state:
     st.session_state.usuario_logado = False
 if 'perfil' not in st.session_state:
     st.session_state.perfil = None
 if 'nome_usuario' not in st.session_state:
     st.session_state.nome_usuario = None
+if 'componente' not in st.session_state:
+    st.session_state.componente = None
 
-# 4. TELA DE LOGIN CONECTADA AO BANCO DE DADOS REAL
+# 4. TELA DE LOGIN SIMPLES E BLINDADA
 if not st.session_state.usuario_logado:
     st.markdown("""<style>[data-testid="collapsedControl"] {display: none;} [data-testid="stSidebar"] {display: none;}</style>""", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 1.2, 1])
@@ -37,15 +39,18 @@ if not st.session_state.usuario_logado:
                     if usuario_input and senha_input:
                         with st.spinner("Autenticando..."):
                             try:
-                                # AQUI É A MÁGICA: O sistema busca o usuário exato no banco de dados
+                                # Vai no banco verificar as credenciais
                                 resposta = supabase.table("usuarios").select("*").eq("usuario", usuario_input).eq("senha", senha_input).eq("ativo", True).execute()
                                 
                                 if len(resposta.data) > 0:
-                                    # Se achou no banco, faz o login e puxa o perfil real dele!
                                     dados_user = resposta.data[0]
+                                    
+                                    # Grava os dados na memória (Sessão)
                                     st.session_state.usuario_logado = True
                                     st.session_state.perfil = dados_user['perfil']
                                     st.session_state.nome_usuario = dados_user['usuario']
+                                    st.session_state.componente = dados_user.get('componente', 'Todos') # Puxa a matéria direto do banco!
+                                    
                                     st.rerun()
                                 else:
                                     st.error("❌ Usuário ou senha incorretos, ou conta desativada.")
@@ -55,55 +60,47 @@ if not st.session_state.usuario_logado:
                         st.warning("Preencha o usuário e a senha.")
     st.stop()
 
-# 5. MENU LATERAL
+# 5. MENU LATERAL HIERÁRQUICO
 with st.sidebar:
     st.title("📚 Avalia System")
-    # Mostra o Nome do usuário e o Perfil que vieram do banco de dados
     st.markdown(f"**👤 {st.session_state.nome_usuario.title()}**")
-    st.caption(f"Perfil: {st.session_state.perfil}")
+    
+    # Mostra qual a disciplina do professor no menu
+    texto_perfil = f"Perfil: {st.session_state.perfil}"
+    if st.session_state.perfil == "Elaborador":
+        texto_perfil += f" ({st.session_state.componente})"
+    st.caption(texto_perfil)
+    
     st.divider()
     
+    # Link comum a todos
     st.page_link("app.py", label="Dashboard Principal", icon="📊")
     
+    # Links EXCLUSIVOS do Administrador
     if st.session_state.perfil == "Administrador":
         st.page_link("pages/1_Matrizes.py", label="Gestão de Matrizes", icon="⚙️")
-        # O link do painel de usuários vai entrar aqui no próximo passo!
         st.page_link("pages/3_Gestao_Usuarios.py", label="Gestão de Usuários", icon="👥")
         
+    # Links Operacionais (Ambos acessam)
     st.page_link("pages/2_Criar_Questao.py", label="Criar Questões", icon="📝")
+    st.page_link("pages/4_Banco_Questoes.py", label="Banco de Questões", icon="🗄️")
     
     st.divider()
     if st.button("🚪 Sair", use_container_width=True):
         st.session_state.clear()
         st.rerun()
 
-# 6. A TRAVA DO BANCO DE DADOS
-try:
-    banco_vazio = len(supabase.table("matrizes").select("id").limit(1).execute().data) == 0
-except Exception as e:
-    st.error(f"Erro ao conectar com o banco de dados: {e}")
-    st.stop()
-
-if banco_vazio:
-    if st.session_state.perfil == "Administrador":
-        st.warning("⚠️ Banco Vazio: Você precisa importar a planilha de Matrizes.")
-        st.switch_page("pages/1_Matrizes.py") 
-    else:
-        st.error("⛔ O sistema não foi inicializado pela coordenação.")
-        st.stop() 
-
-# 7. DASHBOARD FILTRADO DINAMICAMENTE
+# 6. DASHBOARD (Visão de Acordo com o Perfil)
 st.header("📊 Dashboard do Ciclo Avaliativo")
 
 try:
     total_matrizes = len(supabase.table("matrizes").select("id").execute().data)
     
-    # Separação de visão com base no banco
     if st.session_state.perfil == "Administrador":
         st.write("Visão Global: Total de itens na rede.")
         total_questoes = len(supabase.table("questoes").select("id").execute().data)
     else:
-        st.write(f"Visão Isolada: Mostrando apenas o seu progresso.")
+        st.write(f"Visão Isolada: Mostrando seu progresso em **{st.session_state.componente}**.")
         total_questoes = len(supabase.table("questoes").select("id").eq("autor", st.session_state.nome_usuario).execute().data)
         
 except Exception as e:
@@ -112,7 +109,7 @@ except Exception as e:
 col1, col2, col3 = st.columns(3)
 with col1:
     with st.container(border=True):
-        st.metric("Suas Questões (Criadas)" if st.session_state.perfil == "Elaborador" else "Total de Questões (Rede)", f"{total_questoes} itens")
+        st.metric("Suas Questões" if st.session_state.perfil == "Elaborador" else "Total de Questões (Rede)", f"{total_questoes} itens")
 with col2:
     with st.container(border=True):
         st.metric("Matrizes Carregadas", f"{total_matrizes} habilidades")
