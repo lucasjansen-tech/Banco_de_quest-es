@@ -51,14 +51,14 @@ modo_atual = "novo"
 if 'edit_mode' in st.session_state:
     origem = st.session_state.edit_mode
     modo_atual = "edicao"
-    st.info("🔄 **Modo de Edição**")
+    st.info(f"🔄 **Modo de Edição:** Questão ID {origem.get('id', '')}")
     if st.button("❌ Cancelar Edição"):
         del st.session_state.edit_mode
         st.rerun()
 elif 'clone_mode' in st.session_state:
     origem = st.session_state.clone_mode
     modo_atual = "clone"
-    st.warning("🐑 **Modo Clonagem**")
+    st.warning(f"🐑 **Modo Clonagem:** Base autor: {origem.get('autor', '')}")
     if st.button("❌ Cancelar Clonagem"):
         del st.session_state.clone_mode
         st.rerun()
@@ -86,36 +86,54 @@ def carregar_dados_iniciais():
 
 df_matriz, df_textos = carregar_dados_iniciais()
 if df_matriz.empty:
-    st.error("⛔ Matrizes não carregadas.")
+    st.error("⛔ Não há matrizes cadastradas no sistema. Acesse a Gestão de Matrizes.")
     st.stop()
 
 # --- 5. PARÂMETROS E CATÁLOGO MATEMÁTICO ---
-with st.expander("⚙️ Parâmetros Curriculares e Fórmulas", expanded=False):
+with st.expander("⚙️ Parâmetros Curriculares e Fórmulas", expanded=True):
     col_p1, col_p2, col_p3 = st.columns(3)
-    # LÓGICA DE BLINDAGEM DE COMPONENTE
+    
+    # BLINDAGEM ROBUSTA DE COMPONENTE (Ignora Maiúsculas/Minúsculas)
     todos_componentes = df_matriz['componente'].unique().tolist()
     if st.session_state.get('perfil') == "Elaborador":
-        comp_prof = st.session_state.get('componente')
-        if comp_prof and comp_prof in todos_componentes:
-            lista_componentes = [comp_prof] # Trava a lista com apenas a matéria dele
+        comp_prof = st.session_state.get('componente', '')
+        
+        # Busca correspondência exata ignorando case
+        match_comp = next((c for c in todos_componentes if str(c).strip().upper() == str(comp_prof).strip().upper()), None)
+        
+        if match_comp:
+            lista_componentes = [match_comp]
         else:
-            st.error(f"Você está cadastrado em '{comp_prof}', mas não há matrizes importadas para essa matéria ainda.")
+            st.error(f"Sua disciplina é '{comp_prof}', mas não há matrizes para ela no banco. Fale com a Coordenação.")
             st.stop()
     else:
-        lista_componentes = todos_componentes # Administrador vê todas as opções
+        lista_componentes = todos_componentes # Admin vê tudo
 
     with col_p1: componente_sel = st.selectbox("Componente", lista_componentes)
-    with col_p2: ano_sel = st.selectbox("Ano de Ensino", df_matriz[df_matriz['componente'] == componente_sel]['ano'].unique().tolist())
+    
+    # Filtro cascata com trava de segurança
+    anos_disponiveis = df_matriz[df_matriz['componente'] == componente_sel]['ano'].unique().tolist()
+    if not anos_disponiveis:
+        st.warning(f"Nenhum ano escolar encontrado para {componente_sel}.")
+        st.stop()
+        
+    with col_p2: ano_sel = st.selectbox("Ano de Ensino", anos_disponiveis)
+    
+    habs_filtradas = df_matriz[(df_matriz['componente'] == componente_sel) & (df_matriz['ano'] == ano_sel)]
+    if habs_filtradas.empty:
+        st.warning("Nenhuma habilidade cadastrada para este filtro.")
+        st.stop()
+        
     with col_p3:
-        habs_filtradas = df_matriz[(df_matriz['componente'] == componente_sel) & (df_matriz['ano'] == ano_sel)]
         lista_codigos = habs_filtradas['codigo_habilidade'].tolist()
         habilidade_sel = st.selectbox("Habilidade", lista_codigos)
         linha_hab = habs_filtradas[habs_filtradas['codigo_habilidade'] == habilidade_sel].iloc[0]
         id_habilidade_banco = linha_hab['id']
+        
     st.caption(f"**Matriz:** {linha_hab['descricao']}")
 
     st.divider()
-    st.markdown("🧮 **Construtor Matemático Avançado (Copie o código e cole no texto)**")
+    st.markdown("🧮 **Construtor Matemático Avançado (Copie o código LaTeX gerado e cole no texto)**")
     t_frac, t_pot, t_raiz, t_trig, t_simb = st.tabs(["➗ Frações", "x² Potências", "√ Raízes", "📐 Geometria/Trig", "Ω Símbolos"])
     
     with t_frac:
@@ -140,16 +158,16 @@ with st.expander("⚙️ Parâmetros Curriculares e Fórmulas", expanded=False):
             
     with t_trig:
         c1, c2, c3 = st.columns(3)
-        with c1: st.code("$\\sin(\\theta)$", language="latex"); st.code("$\\cos(\\theta)$", language="latex")
-        with c2: st.code("$\\tan(\\theta)$", language="latex"); st.code("$\\pi$", language="latex")
-        with c3: st.code("$90^\\circ$", language="latex"); st.code("$\\triangle ABC$", language="latex")
+        with c1: st.code(r"\sin(\theta)", language="latex"); st.code(r"\cos(\theta)", language="latex")
+        with c2: st.code(r"\tan(\theta)", language="latex"); st.code(r"\pi", language="latex")
+        with c3: st.code(r"90^\circ", language="latex"); st.code(r"\triangle ABC", language="latex")
         
     with t_simb:
         c1, c2, c3, c4 = st.columns(4)
-        with c1: st.code("$\\alpha$", language="latex"); st.code("$\\beta$", language="latex")
-        with c2: st.code("$\\ge$", language="latex"); st.code("$\\le$", language="latex")
-        with c3: st.code("$\\in$", language="latex"); st.code("$\\notin$", language="latex")
-        with c4: st.code("$\\approx$", language="latex"); st.code("$\\neq$", language="latex")
+        with c1: st.code(r"\alpha", language="latex"); st.code(r"\beta", language="latex")
+        with c2: st.code(r"\ge", language="latex"); st.code(r"\le", language="latex")
+        with c3: st.code(r"\in", language="latex"); st.code(r"\notin", language="latex")
+        with c4: st.code(r"\approx", language="latex"); st.code(r"\neq", language="latex")
 
 # --- 6. O EDITOR EM BLOCOS ---
 opcoes_niveis = ["Fácil", "Intermediária", "Complexa"]
@@ -168,26 +186,42 @@ with col_editor:
     with st.container(border=True):
         st.markdown("### 1️⃣ Bloco de Contexto")
         
-        # Gestão inteligente de Textos Base
         st.write("**Texto de Apoio (Opcional)**")
-        tipo_texto = st.radio("Escolha a origem:", ["Nenhum", "Selecionar do Acervo", "Cadastrar Novo"], horizontal=True)
+        
+        # Define o estado inicial do rádio botão com base no id existente
+        idx_radio = 0
+        if val_id_texto_base:
+            idx_radio = 1 # "Selecionar do Acervo"
+            
+        tipo_texto = st.radio("Origem:", ["Nenhum", "Selecionar do Acervo", "Cadastrar Novo"], horizontal=True, index=idx_radio)
         
         texto_base_final = ""
         id_texto_final = val_id_texto_base
+        titulo_novo = ""
         
         if tipo_texto == "Selecionar do Acervo":
             if not df_textos.empty:
                 titulos_dict = dict(zip(df_textos.titulo, df_textos.id))
-                titulos_dict["-- Selecione --"] = None
-                texto_selecionado = st.selectbox("Selecione um texto existente:", list(titulos_dict.keys()))
-                id_texto_final = titulos_dict.get(texto_selecionado)
-                if id_texto_final:
+                opcoes_titulos = ["-- Selecione --"] + list(titulos_dict.keys())
+                
+                # Se estava editando/clonando, tenta achar o título atual para selecionar
+                idx_selecionado = 0
+                if id_texto_final in df_textos.id.values:
+                    titulo_atual = df_textos[df_textos['id'] == id_texto_final]['titulo'].values[0]
+                    if titulo_atual in opcoes_titulos:
+                        idx_selecionado = opcoes_titulos.index(titulo_atual)
+                        
+                texto_selecionado = st.selectbox("Textos cadastrados:", opcoes_titulos, index=idx_selecionado)
+                
+                if texto_selecionado != "-- Selecione --":
+                    id_texto_final = titulos_dict.get(texto_selecionado)
                     texto_base_final = df_textos[df_textos['id'] == id_texto_final]['conteudo'].values[0]
             else:
-                st.warning("Nenhum texto cadastrado no acervo.")
+                st.warning("Nenhum texto cadastrado no acervo. Crie um novo.")
+                tipo_texto = "Cadastrar Novo"
                 
-        elif tipo_texto == "Cadastrar Novo":
-            st.info("Este texto será salvo no acervo para ser usado em outras questões.")
+        if tipo_texto == "Cadastrar Novo":
+            st.info("Este texto será salvo no acervo para futuras questões.")
             titulo_novo = st.text_input("Título do Novo Texto")
             texto_base_final = st.text_area("Conteúdo do Texto", height=100)
 
@@ -196,15 +230,16 @@ with col_editor:
         
         if st.button("✨ Revisar Contexto e Imagem", use_container_width=True):
             with st.spinner("Analisando alinhamento..."):
-                prompt_ctx = f"""Revise a clareza deste enunciado escolar: '{enunciado_input}'. Texto base associado: '{texto_base_final}'. Avise se a imagem (se houver) precisa de elementos específicos. Retorne JSON: {{"enunciado": "...", "aviso_imagem": "..."}}"""
+                prompt_ctx = f"""Atue como revisor pedagógico. Revise a clareza deste enunciado escolar: '{enunciado_input}'. Texto base associado: '{texto_base_final}'. Avise se a imagem (se houver) precisa de elementos específicos para o enunciado fazer sentido. Retorne ESTRITAMENTE em formato JSON puro: {{"enunciado": "...", "aviso_imagem": "..."}}"""
                 try:
                     res = modelo_ia.generate_content(prompt_ctx)
-                    dados_ctx = json.loads(res.text.replace("```json", "").replace("```", "").strip())
+                    texto_json = res.text.replace("```json", "").replace("```", "").strip()
+                    dados_ctx = json.loads(texto_json)
                     st.success("Revisão concluída!")
                     st.info(f"🖼️ **Parecer sobre a Imagem:** {dados_ctx.get('aviso_imagem', 'Ok')}")
                     st.text_area("Sugestão de Enunciado (Copie se gostar):", value=dados_ctx.get('enunciado', ''))
-                except:
-                    st.error("Erro ao formatar a revisão da IA.")
+                except Exception as e:
+                    st.error(f"Erro ao formatar a revisão da IA. Tente novamente.")
 
     # ==========================================
     # BLOCO 2: ALTERNATIVAS
@@ -215,7 +250,7 @@ with col_editor:
         idx_gab = lista_gabarito.index(val_gabarito) if val_gabarito in lista_gabarito else 0
         gabarito = st.selectbox("Gabarito Oficial*", lista_gabarito, index=idx_gab)
         
-        st.caption("⚠️ **Aviso de Imagens:** Recorte a imagem para mostrar APENAS a alternativa atual. Não suba blocos com todas as letras juntas.")
+        st.caption("⚠️ **Aviso de Imagens:** Suba imagens individuais (Apenas o gráfico da letra A, por exemplo).")
         
         alt_A = st.text_area("A)", value=val_alt_a, height=68)
         img_A = st.file_uploader("Img A", type=['png', 'jpg'], key="img_a")
@@ -243,7 +278,7 @@ with col_editor:
                 with st.spinner("Resolvendo a questão..."):
                     dicionario_alts = {"A": alt_A, "B": alt_B, "C": alt_C, "D": alt_D}
                     resposta_correta = dicionario_alts.get(gabarito, "")
-                    prompt_res = f"Atue como um professor. Resolva esta questão passo a passo, explicando por que a resposta '{gabarito}) {resposta_correta}' está correta. Enunciado: {enunciado_input}. Retorne apenas a explicação direta."
+                    prompt_res = f"Atue como professor. Resolva esta questão passo a passo, justificando a resposta correta '{gabarito}) {resposta_correta}'. Enunciado: {enunciado_input}. Seja direto e didático."
                     try:
                         res_resolucao = modelo_ia.generate_content(prompt_res)
                         st.success("Resolução gerada!")
@@ -278,7 +313,7 @@ if st.button(texto_botao, use_container_width=True, type="primary"):
     if enunciado_input and alt_A and alt_B and alt_C and alt_D:
         with st.spinner("Gravando no banco oficial..."):
             
-            # 1. Verifica se precisa salvar um texto base novo primeiro
+            # 1. Verifica Textos Base Novos
             if tipo_texto == "Cadastrar Novo" and titulo_novo and texto_base_final:
                 novo_texto_db = {"titulo": titulo_novo, "conteudo": texto_base_final, "autor": st.session_state.nome_usuario}
                 try:
@@ -287,8 +322,10 @@ if st.button(texto_botao, use_container_width=True, type="primary"):
                 except Exception as e:
                     st.error(f"Erro ao salvar texto base: {e}")
                     st.stop()
+            elif tipo_texto == "Nenhum":
+                id_texto_final = None
             
-            # 2. Monta o pacote da Questão
+            # 2. Pacote da Questão
             dict_alternativas = {
                 "A": {"texto": alt_A, "tem_imagem": True if img_A else False},
                 "B": {"texto": alt_B, "tem_imagem": True if img_B else False},
@@ -298,30 +335,36 @@ if st.button(texto_botao, use_container_width=True, type="primary"):
             
             nova_questao = {
                 "id_habilidade": id_habilidade_banco,
-                "id_texto_base": id_texto_final if tipo_texto != "Nenhum" else None,
+                "id_texto_base": id_texto_final,
                 "autor": st.session_state.nome_usuario,
                 "status": "Concluída",
                 "complexidade": complexidade,
                 "enunciado": enunciado_input,
-                "imagem_url": None, 
+                "imagem_url": None, # Próximo passo: Conectar ao Storage do Supabase!
                 "alternativas": dict_alternativas,
                 "gabarito": gabarito,
                 "resolucao": resolucao_input,
                 "tags": tags
             }
             
-            # 3. Executa a inserção/atualização
+            # 3. Execução
             try:
                 if modo_atual == "edicao" and origem:
                     supabase.table("questoes").update(nova_questao).eq("id", origem['id']).execute()
                     st.success("✅ Questão atualizada!")
-                    del st.session_state.edit_mode
+                    if 'edit_mode' in st.session_state: del st.session_state.edit_mode
                 else:
                     supabase.table("questoes").insert(nova_questao).execute()
                     st.success("✅ Nova questão salva!")
-                    if 'clone_mode' in st.session_state:
-                        del st.session_state.clone_mode
+                    if 'clone_mode' in st.session_state: del st.session_state.clone_mode
+                
+                # Recarrega a página para limpar os campos após sucesso
+                import time
+                st.balloons()
+                time.sleep(2)
+                st.rerun()
+                
             except Exception as e:
                 st.error(f"Erro no banco: {e}")
     else:
-        st.error("Preencha todos os campos obrigatórios.")
+        st.error("Preencha o Enunciado e as 4 Alternativas para salvar.")
