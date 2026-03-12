@@ -154,7 +154,9 @@ with st.expander("🧮 Catálogo de Fórmulas e Símbolos (Clique para abrir)"):
 
 st.divider()
 
-# --- 7. EDITOR ROBUSTO COM IA E IMAGENS ---
+import json
+
+# --- 7. EDITOR ROBUSTO COM IA (GERAÇÃO COMPLETA) ---
 st.subheader("2. Estrutura do Item")
 col_meta1, col_meta2 = st.columns(2)
 
@@ -168,63 +170,91 @@ else:
 with col_meta1: complexidade = st.select_slider("Complexidade", options=opcoes_permitidas)
 with col_meta2: tags = st.text_input("Tags", value=val_tags, placeholder="Ex: Fração, Geometria")
 
+# --- OS SUPER BOTÕES DE IA ---
+st.markdown("### ✨ Inteligência Artificial")
+col_ia1, col_ia2 = st.columns(2)
+
+with col_ia1:
+    if st.button("🪄 Gerar Questão do Zero (Por Habilidade)", use_container_width=True, type="primary"):
+        with st.spinner("Criando questão inédita baseada na matriz..."):
+            prompt_geracao = f"""
+            Você é um elaborador de itens de avaliação educacional.
+            Crie UMA questão inédita de nível {complexidade}.
+            Habilidade exigida: {linha_hab['descricao']}
+            Retorne o resultado ESTRITAMENTE em formato JSON com as seguintes chaves: 
+            "enunciado", "A", "B", "C", "D" (onde A deve ser sempre a resposta correta).
+            Não inclua marcações markdown como ```json, apenas as chaves.
+            """
+            try:
+                resposta = modelo_ia.generate_content(prompt_geracao)
+                texto_limpo = resposta.text.replace("```json", "").replace("```", "").strip()
+                dados_ia = json.loads(texto_limpo)
+                
+                # Injeta os dados gerados nas variáveis da tela
+                val_enunciado = dados_ia.get("enunciado", "")
+                val_alt_a = dados_ia.get("A", "")
+                val_alt_b = dados_ia.get("B", "")
+                val_alt_c = dados_ia.get("C", "")
+                val_alt_d = dados_ia.get("D", "")
+                st.success("Questão gerada! Faça os ajustes necessários abaixo.")
+            except Exception as e:
+                st.error("A IA não retornou no formato esperado. Tente novamente.")
+
+with col_ia2:
+    if st.button("🔎 Revisar Questão Atual Inteira", use_container_width=True):
+        if not val_enunciado:
+            st.warning("Preencha ao menos o enunciado para revisar.")
+        else:
+            with st.spinner("Revisando clareza, ortografia e distratores..."):
+                prompt_revisao = f"""
+                Revise esta questão para torná-la profissional e clara para alunos.
+                Enunciado: {val_enunciado}
+                A (Correta): {val_alt_a}
+                B: {val_alt_b} | C: {val_alt_c} | D: {val_alt_d}
+                Retorne ESTRITAMENTE em JSON com as chaves: "enunciado", "A", "B", "C", "D".
+                """
+                try:
+                    resposta = modelo_ia.generate_content(prompt_revisao)
+                    texto_limpo = resposta.text.replace("```json", "").replace("```", "").strip()
+                    dados_ia = json.loads(texto_limpo)
+                    
+                    val_enunciado = dados_ia.get("enunciado", val_enunciado)
+                    val_alt_a = dados_ia.get("A", val_alt_a)
+                    val_alt_b = dados_ia.get("B", val_alt_b)
+                    val_alt_c = dados_ia.get("C", val_alt_c)
+                    val_alt_d = dados_ia.get("D", val_alt_d)
+                    st.success("Questão revisada e atualizada nos campos abaixo!")
+                except Exception as e:
+                    st.error("A IA não conseguiu formatar a revisão. Tente novamente.")
+
+st.divider()
+
 col_editor, col_preview = st.columns([1.2, 1])
-
-# Funções da IA (Agora com proteção try/except para não quebrar o app)
-def melhorar_enunciado(texto_atual):
-    if not texto_atual: return "Erro: Escreva um rascunho."
-    prompt = f"Melhore a clareza deste enunciado para uma prova escolar. Retorne APENAS o texto melhorado:\n\n{texto_atual}"
-    try:
-        return modelo_ia.generate_content(prompt).text
-    except Exception as e:
-        return f"Erro de conexão com a IA: {e}"
-
-def gerar_distratores(enunciado, alt_correta):
-    if not enunciado or not alt_correta: return "Erro: Preencha Enunciado e Letra A."
-    prompt = f"Questão: '{enunciado}'. Correta: '{alt_correta}'. Crie 3 alternativas INCORRETAS baseadas em erros comuns. Retorne as 3 separadas por um traço (-), sem as letras A, B, C."
-    try:
-        return modelo_ia.generate_content(prompt).text
-    except Exception as e:
-        return f"Erro de conexão com a IA: {e}"
 
 with col_editor:
     with st.container(border=True):
         st.markdown("### ✍️ Edição")
         texto_base = st.text_area("Texto Base (Opcional)", value=val_texto_base, height=80)
+        img_apoio = st.file_uploader("Imagem do Enunciado (Opcional)", type=['png', 'jpg'], key="img_base")
         
-        # IMAGEM DO ENUNCIADO REINTEGRADA
-        img_apoio = st.file_uploader("Imagem do Enunciado (Opcional)", type=['png', 'jpg', 'jpeg'], key="img_base")
+        enunciado_input = st.text_area("Enunciado*", value=val_enunciado, height=100)
         
-        st.markdown("**Enunciado da Questão***")
-        enunciado_input = st.text_area("Digite o enunciado", value=val_enunciado, height=100, key="input_enunciado")
-        
-        if st.button("✨ Melhorar Enunciado com IA"):
-            with st.spinner("Analisando..."):
-                st.info(f"**Sugestão IA:**\n{melhorar_enunciado(enunciado_input)}")
-        
-        st.markdown("---")
         st.markdown("#### Alternativas")
-        
-        # ALTERNATIVAS COM IMAGENS REINTEGRADAS
-        alt_A = st.text_area("A) *Resposta Correta*", value=val_alt_a, height=68, key="txt_a")
+        alt_A = st.text_area("A) *Resposta Correta*", value=val_alt_a, height=68)
         img_A = st.file_uploader("Imagem A", type=['png', 'jpg'], key="img_a")
         
-        if st.button("✨ Gerar Alternativas Erradas (IA)"):
-            with st.spinner("Criando distratores..."):
-                st.warning(f"**Sugestão IA:**\n{gerar_distratores(enunciado_input, alt_A)}")
-        
-        alt_B = st.text_area("B)*", value=val_alt_b, height=68, key="txt_b")
+        alt_B = st.text_area("B)", value=val_alt_b, height=68)
         img_B = st.file_uploader("Imagem B", type=['png', 'jpg'], key="img_b")
         
-        alt_C = st.text_area("C)*", value=val_alt_c, height=68, key="txt_c")
+        alt_C = st.text_area("C)", value=val_alt_c, height=68)
         img_C = st.file_uploader("Imagem C", type=['png', 'jpg'], key="img_c")
         
-        alt_D = st.text_area("D)*", value=val_alt_d, height=68, key="txt_d")
+        alt_D = st.text_area("D)", value=val_alt_d, height=68)
         img_D = st.file_uploader("Imagem D", type=['png', 'jpg'], key="img_d")
         
         lista_gabarito = ["A", "B", "C", "D"]
         idx_gab = lista_gabarito.index(val_gabarito) if val_gabarito in lista_gabarito else 0
-        gabarito = st.selectbox("Gabarito*", lista_gabarito, index=idx_gab)
+        gabarito = st.selectbox("Gabarito Oficial*", lista_gabarito, index=idx_gab)
 
 with col_preview:
     with st.container(border=True):
