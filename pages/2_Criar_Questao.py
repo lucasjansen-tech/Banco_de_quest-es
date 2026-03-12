@@ -16,7 +16,8 @@ supabase = init_connection()
 
 # --- CONFIGURAÇÃO DA IA ---
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-modelo_ia = genai.GenerativeModel('gemini-1.5-flash')
+# Mudamos para gemini-pro que é o modelo mais estável e universalmente disponível
+modelo_ia = genai.GenerativeModel('gemini-pro') 
 
 # --- 2. MENU LATERAL ---
 with st.sidebar:
@@ -55,7 +56,7 @@ elif 'clone_mode' in st.session_state:
         del st.session_state.clone_mode
         st.rerun()
 
-# Preenchimento das variáveis se vier de uma edição/clonagem
+# Preenchimento das variáveis se vier de edição/clonagem
 val_texto_base = origem.get('texto_base', "") if origem else ""
 val_enunciado = origem.get('enunciado', "") if origem else ""
 val_tags = origem.get('tags', "") if origem else ""
@@ -144,11 +145,10 @@ with st.expander("🧮 Catálogo de Fórmulas e Símbolos (Clique para abrir)"):
 
 st.divider()
 
-# --- 7. EDITOR ROBUSTO COM IA ---
+# --- 7. EDITOR ROBUSTO COM IA E IMAGENS ---
 st.subheader("2. Estrutura do Item")
 col_meta1, col_meta2 = st.columns(2)
 
-# Regra de complexidade para clonagem (não pode baixar o nível)
 opcoes_niveis = ["Fácil", "Intermediária", "Complexa"]
 if modo_atual == "clone" and origem:
     idx_min = opcoes_niveis.index(origem.get('complexidade', 'Fácil'))
@@ -156,28 +156,35 @@ if modo_atual == "clone" and origem:
 else:
     opcoes_permitidas = opcoes_niveis
 
-with col_meta1: 
-    complexidade = st.select_slider("Complexidade", options=opcoes_permitidas)
-with col_meta2: 
-    tags = st.text_input("Tags", value=val_tags, placeholder="Ex: Fração, Geometria")
+with col_meta1: complexidade = st.select_slider("Complexidade", options=opcoes_permitidas)
+with col_meta2: tags = st.text_input("Tags", value=val_tags, placeholder="Ex: Fração, Geometria")
 
 col_editor, col_preview = st.columns([1.2, 1])
 
-# Funções da IA
+# Funções da IA (Agora com proteção try/except para não quebrar o app)
 def melhorar_enunciado(texto_atual):
     if not texto_atual: return "Erro: Escreva um rascunho."
     prompt = f"Melhore a clareza deste enunciado para uma prova escolar. Retorne APENAS o texto melhorado:\n\n{texto_atual}"
-    return modelo_ia.generate_content(prompt).text
+    try:
+        return modelo_ia.generate_content(prompt).text
+    except Exception as e:
+        return f"Erro de conexão com a IA: {e}"
 
 def gerar_distratores(enunciado, alt_correta):
     if not enunciado or not alt_correta: return "Erro: Preencha Enunciado e Letra A."
     prompt = f"Questão: '{enunciado}'. Correta: '{alt_correta}'. Crie 3 alternativas INCORRETAS baseadas em erros comuns. Retorne as 3 separadas por um traço (-), sem as letras A, B, C."
-    return modelo_ia.generate_content(prompt).text
+    try:
+        return modelo_ia.generate_content(prompt).text
+    except Exception as e:
+        return f"Erro de conexão com a IA: {e}"
 
 with col_editor:
     with st.container(border=True):
         st.markdown("### ✍️ Edição")
         texto_base = st.text_area("Texto Base (Opcional)", value=val_texto_base, height=80)
+        
+        # IMAGEM DO ENUNCIADO REINTEGRADA
+        img_apoio = st.file_uploader("Imagem do Enunciado (Opcional)", type=['png', 'jpg', 'jpeg'], key="img_base")
         
         st.markdown("**Enunciado da Questão***")
         enunciado_input = st.text_area("Digite o enunciado", value=val_enunciado, height=100, key="input_enunciado")
@@ -187,15 +194,24 @@ with col_editor:
                 st.info(f"**Sugestão IA:**\n{melhorar_enunciado(enunciado_input)}")
         
         st.markdown("---")
+        st.markdown("#### Alternativas")
+        
+        # ALTERNATIVAS COM IMAGENS REINTEGRADAS
         alt_A = st.text_area("A) *Resposta Correta*", value=val_alt_a, height=68, key="txt_a")
+        img_A = st.file_uploader("Imagem A", type=['png', 'jpg'], key="img_a")
         
         if st.button("✨ Gerar Alternativas Erradas (IA)"):
             with st.spinner("Criando distratores..."):
                 st.warning(f"**Sugestão IA:**\n{gerar_distratores(enunciado_input, alt_A)}")
         
         alt_B = st.text_area("B)*", value=val_alt_b, height=68, key="txt_b")
+        img_B = st.file_uploader("Imagem B", type=['png', 'jpg'], key="img_b")
+        
         alt_C = st.text_area("C)*", value=val_alt_c, height=68, key="txt_c")
+        img_C = st.file_uploader("Imagem C", type=['png', 'jpg'], key="img_c")
+        
         alt_D = st.text_area("D)*", value=val_alt_d, height=68, key="txt_d")
+        img_D = st.file_uploader("Imagem D", type=['png', 'jpg'], key="img_d")
         
         lista_gabarito = ["A", "B", "C", "D"]
         idx_gab = lista_gabarito.index(val_gabarito) if val_gabarito in lista_gabarito else 0
@@ -206,12 +222,21 @@ with col_preview:
         st.markdown("### 👀 Visualização Final")
         st.divider()
         if texto_base: st.markdown(texto_base)
+        if img_apoio: st.image(img_apoio, use_container_width=True)
         if enunciado_input: st.markdown(f"**Questão:** {enunciado_input}")
         st.markdown("---")
-        if alt_A: st.markdown(f"**A)** {alt_A}")
-        if alt_B: st.markdown(f"**B)** {alt_B}")
-        if alt_C: st.markdown(f"**C)** {alt_C}")
-        if alt_D: st.markdown(f"**D)** {alt_D}")
+        if alt_A or img_A: 
+            st.markdown(f"**A)** {alt_A}")
+            if img_A: st.image(img_A, width=150)
+        if alt_B or img_B: 
+            st.markdown(f"**B)** {alt_B}")
+            if img_B: st.image(img_B, width=150)
+        if alt_C or img_C: 
+            st.markdown(f"**C)** {alt_C}")
+            if img_C: st.image(img_C, width=150)
+        if alt_D or img_D: 
+            st.markdown(f"**D)** {alt_D}")
+            if img_D: st.image(img_D, width=150)
 
 st.divider()
 
@@ -222,20 +247,20 @@ if st.button(texto_botao, use_container_width=True):
     if enunciado_input and alt_A and alt_B and alt_C and alt_D:
         with st.spinner("Gravando no banco de dados..."):
             dict_alternativas = {
-                "A": {"texto": alt_A, "tem_imagem": False},
-                "B": {"texto": alt_B, "tem_imagem": False},
-                "C": {"texto": alt_C, "tem_imagem": False},
-                "D": {"texto": alt_D, "tem_imagem": False}
+                "A": {"texto": alt_A, "tem_imagem": True if img_A else False},
+                "B": {"texto": alt_B, "tem_imagem": True if img_B else False},
+                "C": {"texto": alt_C, "tem_imagem": True if img_C else False},
+                "D": {"texto": alt_D, "tem_imagem": True if img_D else False}
             }
             
             nova_questao = {
                 "id_habilidade": id_habilidade_banco,
-                "autor": st.session_state.nome_usuario, # Fica no nome de quem está salvando
+                "autor": st.session_state.nome_usuario,
                 "status": "Concluída",
                 "complexidade": complexidade,
                 "texto_base": texto_base,
                 "enunciado": enunciado_input,
-                "imagem_url": None, 
+                "imagem_url": None, # Em breve conectaremos ao Storage do Supabase
                 "alternativas": dict_alternativas,
                 "gabarito": gabarito,
                 "tags": tags
@@ -243,12 +268,10 @@ if st.button(texto_botao, use_container_width=True):
             
             try:
                 if modo_atual == "edicao" and origem:
-                    # ATUALIZA o registro existente
                     supabase.table("questoes").update(nova_questao).eq("id", origem['id']).execute()
                     st.success("✅ Questão atualizada com sucesso!")
                     del st.session_state.edit_mode
                 else:
-                    # CRIA um novo registro (seja do zero ou de um clone)
                     supabase.table("questoes").insert(nova_questao).execute()
                     st.success("✅ Nova questão salva com sucesso!")
                     if 'clone_mode' in st.session_state:
