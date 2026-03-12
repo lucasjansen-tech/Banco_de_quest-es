@@ -6,6 +6,7 @@ import json
 import io
 import uuid
 from PIL import Image
+import time
 
 st.set_page_config(page_title="Elaborador de Itens", page_icon="📝", layout="wide")
 
@@ -76,9 +77,13 @@ with st.sidebar:
 
 st.title("📝 Estúdio de Criação Avançado")
 
-# --- 3. LÓGICA DE EDIÇÃO/CLONAGEM ---
+# --- 3. LÓGICA DE EDIÇÃO/CLONAGEM E LOTE ---
 origem = None
 modo_atual = "novo"
+
+# Memória para Criação em Sequência (Lote)
+if 'modo_lote_id' not in st.session_state:
+    st.session_state.modo_lote_id = None
 
 if 'edit_mode' in st.session_state:
     origem = st.session_state.edit_mode
@@ -109,6 +114,14 @@ if origem and 'alternativas' in origem and origem['alternativas']:
     val_alt_d = origem['alternativas'].get('D', {}).get('texto', '')
 else:
     val_alt_a, val_alt_b, val_alt_c, val_alt_d = "", "", "", ""
+
+# A MÁGICA DO LOTE: Trava o Nível 1 se estiver criando várias questões do mesmo texto
+if st.session_state.modo_lote_id and modo_atual == "novo":
+    val_id_texto_base = st.session_state.modo_lote_id
+    st.success("🔗 **Modo Sequência Ativo:** O Acervo (Nível 1) está travado para você criar a próxima questão da bateria.")
+    if st.button("❌ Encerrar Sequência e Limpar Texto", size="small"):
+        st.session_state.modo_lote_id = None
+        st.rerun()
 
 # --- 4. BUSCANDO DADOS ---
 @st.cache_data(ttl=60)
@@ -374,9 +387,6 @@ with col_preview:
 st.divider()
 
 # --- 7. GRAVAÇÃO SEGURA NO BANCO E NO STORAGE ---
-texto_botao = "🔄 Atualizar Questão" if modo_atual == "edicao" else "💾 Salvar Questão"
-
-# Helper para não apagar imagens antigas se não subir uma nova na edição
 def obter_url_final(upload_novo, prefixo, chave_alt=None):
     url_nova = processar_e_subir_imagem(upload_novo, prefixo)
     if url_nova: 
@@ -388,11 +398,26 @@ def obter_url_final(upload_novo, prefixo, chave_alt=None):
             return origem.get('imagem_suporte_url')
     return None
 
-if st.button(texto_botao, use_container_width=True, type="primary"):
+st.markdown("### 💾 Finalizar Questão")
+c_btn1, c_btn2 = st.columns(2)
+
+if modo_atual == "edicao":
+    btn_acionado = c_btn1.button("🔄 Atualizar Questão", use_container_width=True, type="primary")
+    manter_lote = False
+else:
+    btn_acionado = c_btn1.button("💾 Salvar e Limpar Tela", use_container_width=True)
+    btn_lote_acionado = c_btn2.button("➕ Salvar e Criar Próxima com o Mesmo Texto", type="primary", use_container_width=True)
+    if btn_lote_acionado:
+        btn_acionado = True
+        manter_lote = True
+    else:
+        manter_lote = False
+
+if btn_acionado:
     if enunciado_input and alt_A and alt_B and alt_C and alt_D:
         with st.spinner("Processando dados e salvando na nuvem..."):
             
-            # 1. Trata o Nível 1 (Acervo Compartilhado)
+            # 1. Trata o Nível 1 (Acervo)
             if tipo_texto == "Cadastrar Novo" and titulo_novo:
                 url_img_acervo = processar_e_subir_imagem(img_acervo_nova, "acervo")
                 novo_texto_db = {
@@ -410,7 +435,7 @@ if st.button(texto_botao, use_container_width=True, type="primary"):
             elif tipo_texto == "Nenhum":
                 id_texto_final = None
             
-            # 2. Trata Nível 2 e Alternativas (Uploads da Questão)
+            # 2. Uploads do Nível 2 e Alternativas
             url_img_suporte = obter_url_final(img_suporte_input, "suporte")
             url_img_A = obter_url_final(img_A, "altA", "A")
             url_img_B = obter_url_final(img_B, "altB", "B")
@@ -434,14 +459,14 @@ if st.button(texto_botao, use_container_width=True, type="primary"):
                 "texto_suporte": texto_suporte_input,
                 "imagem_suporte_url": url_img_suporte,
                 "enunciado": enunciado_input,
-                "imagem_url": None, # Obsoleto pela arquitetura de 3 níveis
+                "imagem_url": None, 
                 "alternativas": dict_alternativas,
                 "gabarito": gabarito,
                 "resolucao": resolucao_input,
                 "tags": tags
             }
             
-            # 4. Execução no Banco de Dados
+            # 4. Execução no Banco
             try:
                 if modo_atual == "edicao" and origem:
                     supabase.table("questoes").update(nova_questao).eq("id", origem['id']).execute()
@@ -449,10 +474,15 @@ if st.button(texto_botao, use_container_width=True, type="primary"):
                     if 'edit_mode' in st.session_state: del st.session_state.edit_mode
                 else:
                     supabase.table("questoes").insert(nova_questao).execute()
-                    st.success("✅ Questão e mídias salvas na nuvem!")
+                    st.success("✅ Questão salva com sucesso!")
                     if 'clone_mode' in st.session_state: del st.session_state.clone_mode
+                    
+                    # GERENCIAMENTO DO MODO LOTE (Trava da Memória)
+                    if manter_lote and id_texto_final:
+                        st.session_state.modo_lote_id = id_texto_final
+                    else:
+                        st.session_state.modo_lote_id = None
                 
-                import time
                 st.balloons()
                 time.sleep(2)
                 st.rerun()
