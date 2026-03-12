@@ -16,8 +16,8 @@ supabase = init_connection()
 
 # --- CONFIGURAÇÃO DA IA ---
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-# Mudamos para gemini-pro que é o modelo mais estável e universalmente disponível
-modelo_ia = genai.GenerativeModel('gemini-pro') 
+# Atualizado para o modelo mais recente e compatível com contas novas
+modelo_ia = genai.GenerativeModel('gemini-1.5-flash')
 
 # --- 2. MENU LATERAL ---
 with st.sidebar:
