@@ -14,10 +14,19 @@ def init_connection():
     return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 supabase = init_connection()
 
-# --- CONFIGURAÇÃO DA IA ---
-# --- CONFIGURAÇÃO DA IA ---
+# --- CONFIGURAÇÃO DA IA (AUTO-DESCOBERTA) ---
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-modelo_ia = genai.GenerativeModel('gemini-1.5-flash-latest')
+
+# A função vai varrer a sua chave e usar o primeiro modelo disponível que gera texto
+modelo_ia = None
+try:
+    for m in genai.list_models():
+        if 'generateContent' in m.supported_generation_methods:
+            # Prefere os modelos da família 1.5, mas aceita qualquer um que funcionar
+            if '1.5' in m.name or modelo_ia is None:
+                modelo_ia = genai.GenerativeModel(m.name)
+except Exception as e:
+    st.error(f"Erro fatal ao conectar com o Google: {e}")
 
 # --- 2. MENU LATERAL ---
 with st.sidebar:
