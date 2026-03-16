@@ -81,7 +81,6 @@ st.title("📝 Estúdio de Criação Avançado")
 origem = None
 modo_atual = "novo"
 
-# Memória para Criação em Sequência (Lote)
 if 'modo_lote_id' not in st.session_state:
     st.session_state.modo_lote_id = None
 
@@ -100,22 +99,19 @@ elif 'clone_mode' in st.session_state:
         del st.session_state.clone_mode
         st.rerun()
 
+# Recupera variáveis nativas ou da Geração via IA (Mágica do "Do Zero")
 val_id_texto_base = origem.get('id_texto_base', None) if origem else None
 val_texto_suporte = origem.get('texto_suporte', "") if origem else ""
-val_enunciado = origem.get('enunciado', "") if origem else ""
 val_resolucao = origem.get('resolucao', "") if origem else ""
 val_tags = origem.get('tags', "") if origem else ""
 val_gabarito = origem.get('gabarito', 'A') if origem else 'A'
 
-if origem and 'alternativas' in origem and origem['alternativas']:
-    val_alt_a = origem['alternativas'].get('A', {}).get('texto', '')
-    val_alt_b = origem['alternativas'].get('B', {}).get('texto', '')
-    val_alt_c = origem['alternativas'].get('C', {}).get('texto', '')
-    val_alt_d = origem['alternativas'].get('D', {}).get('texto', '')
-else:
-    val_alt_a, val_alt_b, val_alt_c, val_alt_d = "", "", "", ""
+val_enunciado = st.session_state.pop('ia_enunciado', origem.get('enunciado', "") if origem else "")
+val_alt_a = st.session_state.pop('ia_A', origem.get('alternativas', {}).get('A', {}).get('texto', '') if origem else "")
+val_alt_b = st.session_state.pop('ia_B', origem.get('alternativas', {}).get('B', {}).get('texto', '') if origem else "")
+val_alt_c = st.session_state.pop('ia_C', origem.get('alternativas', {}).get('C', {}).get('texto', '') if origem else "")
+val_alt_d = st.session_state.pop('ia_D', origem.get('alternativas', {}).get('D', {}).get('texto', '') if origem else "")
 
-# A MÁGICA DO LOTE: Trava o Nível 1 se estiver criando várias questões do mesmo texto
 if st.session_state.modo_lote_id and modo_atual == "novo":
     val_id_texto_base = st.session_state.modo_lote_id
     st.success("🔗 **Modo Sequência Ativo:** O Acervo (Nível 1) está travado para você criar a próxima questão da bateria.")
@@ -135,8 +131,8 @@ if df_matriz.empty:
     st.error("⛔ Não há matrizes cadastradas no sistema. Acesse a Gestão de Matrizes.")
     st.stop()
 
-# --- 5. PARÂMETROS E CATÁLOGO MATEMÁTICO ---
-with st.expander("⚙️ Parâmetros Curriculares e Construtor de Fórmulas", expanded=True):
+# --- 5. PARÂMETROS E CATÁLOGO ---
+with st.expander("⚙️ Parâmetros Curriculares e Ferramentas de Formatação", expanded=True):
     col_p1, col_p2, col_p3 = st.columns(3)
     
     todos_componentes = df_matriz['componente'].unique().tolist()
@@ -170,47 +166,51 @@ with st.expander("⚙️ Parâmetros Curriculares e Construtor de Fórmulas", ex
         id_habilidade_banco = linha_hab['id']
         
     st.caption(f"**Matriz:** {linha_hab['descricao']}")
-
     st.divider()
     
-    st.markdown("### 🧮 Construtor Matemático")
-    t_frac, t_pot, t_raiz, t_trig, t_simb = st.tabs(["➗ Frações", "x² Potências", "√ Raízes", "📐 Geometria/Trig", "Ω Símbolos"])
-    
-    with t_frac:
-        c1, c2 = st.columns(2)
-        with c1: 
-            num = st.text_input("Numerador", "1", key="num_f")
-            den = st.text_input("Denominador", "2", key="den_f")
-        with c2: 
-            codigo_latex = f"\\frac{{{num}}}{{{den}}}"
-            st.latex(codigo_latex); st.code(f"${codigo_latex}$", language="latex")
-    with t_pot:
-        c1, c2 = st.columns(2)
-        with c1: 
-            base = st.text_input("Base", "x", key="base_p")
-            exp = st.text_input("Expoente", "2", key="exp_p")
-        with c2: 
-            codigo_latex = f"{base}^{{{exp}}}"
-            st.latex(codigo_latex); st.code(f"${codigo_latex}$", language="latex")
-    with t_raiz:
-        c1, c2 = st.columns(2)
-        with c1: 
-            ind = st.text_input("Índice", "", key="ind_r")
-            val = st.text_input("Valor Interno", "x", key="val_r")
-        with c2: 
-            codigo_latex = f"\\sqrt[{ind}]{{{val}}}" if ind else f"\\sqrt{{{val}}}"
-            st.latex(codigo_latex); st.code(f"${codigo_latex}$", language="latex")
-    with t_trig:
-        c1, c2, c3 = st.columns(3)
-        with c1: st.latex(r"\sin(\theta)"); st.code(r"$\sin(\theta)$", language="latex")
-        with c2: st.latex(r"\tan(\theta)"); st.code(r"$\tan(\theta)$", language="latex")
-        with c3: st.latex(r"90^\circ"); st.code(r"$90^\circ$", language="latex")
-    with t_simb:
-        c1, c2, c3, c4 = st.columns(4)
-        with c1: st.latex(r"\alpha"); st.code(r"$\alpha$", language="latex")
-        with c2: st.latex(r"\ge"); st.code(r"$\ge$", language="latex")
-        with c3: st.latex(r"\in"); st.code(r"$\in$", language="latex")
-        with c4: st.latex(r"\approx"); st.code(r"$\approx$", language="latex")
+    c_fmt1, c_fmt2 = st.columns([1, 2])
+    with c_fmt1:
+        st.markdown("### ✍️ Guia de Formatação")
+        st.markdown("- **Negrito:** `**palavra**`\n- *Itálico:* `*palavra*`\n- ~~Riscado:~~ `~~palavra~~`\n- Quebra de linha: `Pressione Enter duas vezes`")
+        
+    with c_fmt2:
+        st.markdown("### 🧮 Construtor Matemático")
+        t_frac, t_pot, t_raiz, t_trig, t_simb = st.tabs(["➗ Frações", "x² Potências", "√ Raízes", "📐 Geometria", "Ω Símbolos"])
+        with t_frac:
+            c1, c2 = st.columns(2)
+            with c1: 
+                num = st.text_input("Numerador", "1", key="num_f")
+                den = st.text_input("Denominador", "2", key="den_f")
+            with c2: 
+                codigo_latex = f"\\frac{{{num}}}{{{den}}}"
+                st.latex(codigo_latex); st.code(f"${codigo_latex}$", language="latex")
+        with t_pot:
+            c1, c2 = st.columns(2)
+            with c1: 
+                base = st.text_input("Base", "x", key="base_p")
+                exp = st.text_input("Expoente", "2", key="exp_p")
+            with c2: 
+                codigo_latex = f"{base}^{{{exp}}}"
+                st.latex(codigo_latex); st.code(f"${codigo_latex}$", language="latex")
+        with t_raiz:
+            c1, c2 = st.columns(2)
+            with c1: 
+                ind = st.text_input("Índice", "", key="ind_r")
+                val = st.text_input("Valor Interno", "x", key="val_r")
+            with c2: 
+                codigo_latex = f"\\sqrt[{ind}]{{{val}}}" if ind else f"\\sqrt{{{val}}}"
+                st.latex(codigo_latex); st.code(f"${codigo_latex}$", language="latex")
+        with t_trig:
+            c1, c2, c3 = st.columns(3)
+            with c1: st.latex(r"\sin(\theta)"); st.code(r"$\sin(\theta)$", language="latex")
+            with c2: st.latex(r"\tan(\theta)"); st.code(r"$\tan(\theta)$", language="latex")
+            with c3: st.latex(r"90^\circ"); st.code(r"$90^\circ$", language="latex")
+        with t_simb:
+            c1, c2, c3, c4 = st.columns(4)
+            with c1: st.latex(r"\alpha"); st.code(r"$\alpha$", language="latex")
+            with c2: st.latex(r"\ge"); st.code(r"$\ge$", language="latex")
+            with c3: st.latex(r"\in"); st.code(r"$\in$", language="latex")
+            with c4: st.latex(r"\approx"); st.code(r"$\approx$", language="latex")
 
 # --- 6. O EDITOR EM 3 NÍVEIS ---
 opcoes_niveis = ["Fácil", "Intermediária", "Complexa"]
@@ -223,15 +223,31 @@ with col_editor:
     with col_m1: complexidade = st.select_slider("Nível", options=opcoes_permitidas)
     with col_m2: tags = st.text_input("Tags", value=val_tags)
 
-    # ==========================================
-    # BLOCO 1: ARQUITETURA DE CONTEXTO EM 3 NÍVEIS
-    # ==========================================
+    # NOVO: BOTÃO DE GERAR QUESTÃO DO ZERO
+    st.markdown("### 🪄 Inteligência Artificial")
+    if st.button("✨ Gerar Questão Inédita por Habilidade", use_container_width=True, type="primary"):
+        with st.spinner("Analisando a matriz e criando questão do zero..."):
+            prompt_geracao = f"""Você é um elaborador de itens do SAEB/ENEM. Crie UMA questão inédita de nível {complexidade}. Habilidade exigida: {linha_hab['descricao']}. Retorne ESTRITAMENTE em JSON: "enunciado", "A", "B", "C", "D" (onde A deve ser sempre a resposta correta)."""
+            try:
+                resposta = modelo_ia.generate_content(prompt_geracao)
+                texto_limpo = resposta.text.replace("```json", "").replace("```", "").strip()
+                dados_ia = json.loads(texto_limpo)
+                
+                # Salva no cache para preencher as caixas automaticamente
+                st.session_state['ia_enunciado'] = dados_ia.get("enunciado", "")
+                st.session_state['ia_A'] = dados_ia.get("A", "")
+                st.session_state['ia_B'] = dados_ia.get("B", "")
+                st.session_state['ia_C'] = dados_ia.get("C", "")
+                st.session_state['ia_D'] = dados_ia.get("D", "")
+                st.rerun()
+            except Exception as e:
+                st.error("Erro na comunicação com a IA. Tente novamente.")
+
     with st.container(border=True):
         st.markdown("### 1️⃣ Bloco de Contexto (3 Níveis)")
         
         # --- NÍVEL 1: ACERVO ---
         st.markdown("#### 📚 Nível 1: Acervo Compartilhado")
-        st.caption("Textos ou imagens base que servem para várias questões.")
         
         idx_radio = 1 if val_id_texto_base else 0
         tipo_texto = st.radio("Origem:", ["Nenhum", "Selecionar do Acervo", "Cadastrar Novo"], horizontal=True, index=idx_radio)
@@ -265,7 +281,6 @@ with col_editor:
                 tipo_texto = "Cadastrar Novo"
                 
         if tipo_texto == "Cadastrar Novo":
-            st.info("Este material será salvo no acervo para futuras questões.")
             titulo_novo = st.text_input("Título do Material")
             texto_base_final = st.text_area("Conteúdo (Texto I, Texto II, etc)", height=100)
             img_acervo_nova = st.file_uploader("Imagem Compartilhada (Opcional)", type=['png', 'jpg', 'jpeg'], key="up_img_acervo")
@@ -273,7 +288,6 @@ with col_editor:
         # --- NÍVEL 2: SUPORTE ISOLADO ---
         st.divider()
         st.markdown("#### 🧩 Nível 2: Suporte Isolado")
-        st.caption("Trecho ou imagem Específica APENAS para esta questão (Ex: 'Observe o recorte...').")
         texto_suporte_input = st.text_area("Texto Específico (Opcional)", value=val_texto_suporte, height=68)
         img_suporte_input = st.file_uploader("Imagem Específica (Opcional)", type=['png', 'jpg', 'jpeg'], key="up_img_suporte")
 
@@ -282,27 +296,40 @@ with col_editor:
         st.markdown("#### 🎯 Nível 3: Comando da Questão")
         enunciado_input = st.text_area("Enunciado (A Pergunta Direta)*", value=val_enunciado, height=100)
         
-        if st.button("✨ Revisar Alinhamento de Contexto", use_container_width=True):
-            with st.spinner("Lendo todos os níveis de contexto..."):
-                prompt_ctx = f"""Atue como revisor pedagógico. Analise se a pergunta faz sentido com os textos de apoio.
+        if st.button("🔎 Revisar com IA (Textos e Imagens)", use_container_width=True):
+            with st.spinner("A IA está analisando os textos e observando as imagens anexadas..."):
+                prompt_ctx = f"""Atue como revisor pedagógico. Analise se a pergunta faz sentido com os textos e as imagens de apoio fornecidas.
                 Acervo (Nível 1): '{texto_base_final}'. 
                 Suporte (Nível 2): '{texto_suporte_input}'. 
                 Comando (Nível 3): '{enunciado_input}'.
-                ATENÇÃO: Se houver fórmulas matemáticas (com $), preserve-as EXATAMENTE como estão (use duplo escape \\\\frac).
+                Se imagens foram anexadas, verifique visualmente se elas estão legíveis e se o contexto da questão faz sentido com a imagem.
+                ATENÇÃO: Preserve fórmulas matemáticas (com $) EXATAMENTE como estão (use duplo escape \\\\frac).
                 Retorne ESTRITAMENTE em JSON: {{"parecer": "Sua análise breve aqui", "sugestao_comando": "Novo texto do comando melhorado, se necessário"}}"""
+                
+                # NOVO: Empacota as imagens para a IA realmente enxergar
+                conteudo_ia = [prompt_ctx]
+                
+                if img_acervo_nova is not None:
+                    img_acervo_pil = Image.open(img_acervo_nova)
+                    conteudo_ia.append(img_acervo_pil)
+                if img_suporte_input is not None:
+                    img_suporte_pil = Image.open(img_suporte_input)
+                    conteudo_ia.append(img_suporte_pil)
+
                 try:
-                    res = modelo_ia.generate_content(prompt_ctx)
+                    res = modelo_ia.generate_content(conteudo_ia)
                     texto_json = res.text.replace("```json", "").replace("```", "").strip()
                     dados_ctx = json.loads(texto_json)
-                    st.success("Revisão concluída!")
-                    st.info(f"📊 **Parecer:** {dados_ctx.get('parecer', 'Ok')}")
+                    st.success("Revisão visual e textual concluída!")
+                    st.info(f"📊 **Parecer Pedagógico:** {dados_ctx.get('parecer', 'Ok')}")
                     st.text_area("Sugestão de Comando (Copie se gostar):", value=dados_ctx.get('sugestao_comando', ''))
+                    
+                    # Restaura os ponteiros dos arquivos para não quebrar o salvamento no banco depois
+                    if img_acervo_nova: img_acervo_nova.seek(0)
+                    if img_suporte_input: img_suporte_input.seek(0)
                 except Exception as e:
-                    st.error(f"Erro ao formatar a revisão da IA.")
+                    st.error(f"Erro ao analisar as imagens/texto na IA: {e}")
 
-    # ==========================================
-    # BLOCO 2: ALTERNATIVAS
-    # ==========================================
     with st.container(border=True):
         st.markdown("### 2️⃣ Bloco de Alternativas")
         lista_gabarito = ["A", "B", "C", "D"]
@@ -321,9 +348,6 @@ with col_editor:
         alt_D = st.text_area("D)", value=val_alt_d, height=68)
         img_D = st.file_uploader("Img D", type=['png', 'jpg', 'jpeg'], key="up_img_d")
 
-    # ==========================================
-    # BLOCO 3: RESOLUÇÃO
-    # ==========================================
     with st.container(border=True):
         st.markdown("### 3️⃣ Bloco de Resolução")
         resolucao_input = st.text_area("Passo a passo da resposta", value=val_resolucao, height=100)
@@ -348,24 +372,20 @@ with col_preview:
         st.markdown("### 👀 Visualização do Caderno")
         st.divider()
         
-        # Renderiza Nível 1
         if texto_base_final: st.markdown(f"*{texto_base_final}*")
         if url_img_acervo_existente: st.image(url_img_acervo_existente, use_container_width=True)
         if img_acervo_nova: st.image(img_acervo_nova, use_container_width=True)
         
-        # Renderiza Nível 2
         if texto_suporte_input or img_suporte_input:
             st.markdown("<br>", unsafe_allow_html=True)
             if texto_suporte_input: st.markdown(f"{texto_suporte_input}")
             if img_suporte_input: st.image(img_suporte_input, use_container_width=True)
             elif origem and origem.get('imagem_suporte_url'): st.image(origem.get('imagem_suporte_url'), use_container_width=True)
         
-        # Renderiza Nível 3
         if enunciado_input: st.markdown(f"**{enunciado_input}**")
         
         st.markdown("---")
         
-        # Renderiza Alternativas
         def render_alt(letra, texto, img_upload, chave_dict):
             if texto or img_upload or (origem and origem.get('alternativas', {}).get(chave_dict, {}).get('imagem_url')):
                 st.markdown(f"**{letra})** {texto}")
@@ -417,7 +437,6 @@ if btn_acionado:
     if enunciado_input and alt_A and alt_B and alt_C and alt_D:
         with st.spinner("Processando dados e salvando na nuvem..."):
             
-            # 1. Trata o Nível 1 (Acervo)
             if tipo_texto == "Cadastrar Novo" and titulo_novo:
                 url_img_acervo = processar_e_subir_imagem(img_acervo_nova, "acervo")
                 novo_texto_db = {
@@ -435,14 +454,12 @@ if btn_acionado:
             elif tipo_texto == "Nenhum":
                 id_texto_final = None
             
-            # 2. Uploads do Nível 2 e Alternativas
             url_img_suporte = obter_url_final(img_suporte_input, "suporte")
             url_img_A = obter_url_final(img_A, "altA", "A")
             url_img_B = obter_url_final(img_B, "altB", "B")
             url_img_C = obter_url_final(img_C, "altC", "C")
             url_img_D = obter_url_final(img_D, "altD", "D")
             
-            # 3. Pacote da Questão
             dict_alternativas = {
                 "A": {"texto": alt_A, "tem_imagem": bool(url_img_A), "imagem_url": url_img_A},
                 "B": {"texto": alt_B, "tem_imagem": bool(url_img_B), "imagem_url": url_img_B},
@@ -466,7 +483,6 @@ if btn_acionado:
                 "tags": tags
             }
             
-            # 4. Execução no Banco
             try:
                 if modo_atual == "edicao" and origem:
                     supabase.table("questoes").update(nova_questao).eq("id", origem['id']).execute()
@@ -477,7 +493,6 @@ if btn_acionado:
                     st.success("✅ Questão salva com sucesso!")
                     if 'clone_mode' in st.session_state: del st.session_state.clone_mode
                     
-                    # GERENCIAMENTO DO MODO LOTE (Trava da Memória)
                     if manter_lote and id_texto_final:
                         st.session_state.modo_lote_id = id_texto_final
                     else:
