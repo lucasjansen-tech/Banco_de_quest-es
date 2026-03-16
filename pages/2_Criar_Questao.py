@@ -223,14 +223,32 @@ with col_editor:
     with col_m1: complexidade = st.select_slider("Nível", options=opcoes_permitidas)
     with col_m2: tags = st.text_input("Tags", value=val_tags)
 
-    # NOVO: BOTÃO DE GERAR QUESTÃO DO ZERO
+# NOVO: BOTÃO DE GERAR QUESTÃO DO ZERO
     st.markdown("### 🪄 Inteligência Artificial")
     if st.button("✨ Gerar Questão Inédita por Habilidade", use_container_width=True, type="primary"):
         with st.spinner("Analisando a matriz e criando questão do zero..."):
-            prompt_geracao = f"""Você é um elaborador de itens do SAEB/ENEM. Crie UMA questão inédita de nível {complexidade}. Habilidade exigida: {linha_hab['descricao']}. Retorne ESTRITAMENTE em JSON: "enunciado", "A", "B", "C", "D" (onde A deve ser sempre a resposta correta)."""
+            prompt_geracao = f"""Você é um especialista em elaboração de itens educacionais. 
+            Crie UMA questão inédita de nível {complexidade}. 
+            Habilidade exigida: {linha_hab['descricao']}. 
+            
+            Retorne ESTRITAMENTE um objeto JSON puro. Não escreva nenhuma palavra antes ou depois. Use EXATAMENTE esta estrutura:
+            {{
+                "enunciado": "texto da sua pergunta aqui",
+                "A": "texto da alternativa correta obrigatoriamente aqui",
+                "B": "distrator 1",
+                "C": "distrator 2",
+                "D": "distrator 3"
+            }}"""
             try:
                 resposta = modelo_ia.generate_content(prompt_geracao)
                 texto_limpo = resposta.text.replace("```json", "").replace("```", "").strip()
+                
+                # Truque Ninja: Extrai apenas o que está dentro das chaves, ignorando textos extras da IA
+                inicio = texto_limpo.find('{')
+                fim = texto_limpo.rfind('}') + 1
+                if inicio != -1 and fim != 0:
+                    texto_limpo = texto_limpo[inicio:fim]
+                
                 dados_ia = json.loads(texto_limpo)
                 
                 # Salva no cache para preencher as caixas automaticamente
@@ -241,7 +259,8 @@ with col_editor:
                 st.session_state['ia_D'] = dados_ia.get("D", "")
                 st.rerun()
             except Exception as e:
-                st.error("Erro na comunicação com a IA. Tente novamente.")
+                # Agora o erro mostra o motivo real (ex: JSONDecodeError) para sabermos o que a IA fez
+                st.error(f"A IA não retornou os dados no formato correto. Detalhe: {e}")
 
     with st.container(border=True):
         st.markdown("### 1️⃣ Bloco de Contexto (3 Níveis)")
